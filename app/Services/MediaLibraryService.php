@@ -72,12 +72,12 @@ class MediaLibraryService
     {
         $media = DB::transaction(function () use ($media): Media {
             $locked = Media::query()->lockForUpdate()->findOrFail($media->id);
-            $count = $locked->courses()->count();
-            if ($count > 0) {
+            $usages = $this->usages($locked);
+            if ($usages['total'] > 0) {
                 throw new HttpResponseException(response()->json([
-                    'message' => 'Esta mídia está em uso. Troque ou remova a capa dos cursos antes de excluí-la.',
-                    'usage_count' => $count,
-                    'usages' => $locked->courses()->select('id', 'name', 'slug')->orderBy('id')->limit(20)->get(),
+                    'message' => 'Esta mídia está em uso. Remova os vínculos em cursos ou páginas antes de excluí-la.',
+                    'usage_count' => $usages['total'],
+                    'usages' => $usages['data'],
                 ], 409));
             }
             abort_if($locked->status === 'uploading' && $locked->updated_at->gt(now()->subMinutes(10)), 409, 'Aguarde o envio terminar antes de excluir.');
@@ -88,5 +88,41 @@ class MediaLibraryService
 
         $this->storage->delete($media);
         $media->delete();
+    }
+
+    /** @return array{data: array<int, array<string, mixed>>, total: int} */
+    public function usages(Media $media): array
+    {
+        $groups = [
+            ['relation' => 'courses', 'type' => 'course', 'role' => 'Capa do curso'],
+            ['relation' => 'heroCourses', 'type' => 'course', 'role' => 'Banner do curso'],
+            ['relation' => 'mobileHeroCourses', 'type' => 'course', 'role' => 'Banner mobile do curso'],
+            ['relation' => 'pageHeroes', 'type' => 'page', 'role' => 'Banner da página'],
+            ['relation' => 'mobilePageHeroes', 'type' => 'page', 'role' => 'Banner mobile da página'],
+        ];
+        $data = [];
+        $total = 0;
+
+        foreach ($groups as $group) {
+            $query = $media->{$group['relation']}();
+            $total += $query->count();
+            $remaining = 20 - count($data);
+            if ($remaining < 1) {
+                continue;
+            }
+
+            foreach ($query->orderBy('id')->limit($remaining)->get() as $usage) {
+                $isCourse = $group['type'] === 'course';
+                $data[] = [
+                    'id' => $usage->id,
+                    'name' => $isCourse ? $usage->name : config('page_appearances.pages.'.$usage->page_key.'.label', $usage->page_key),
+                    'type' => $group['type'],
+                    'role' => $group['role'],
+                    'page_key' => $isCourse ? null : $usage->page_key,
+                ];
+            }
+        }
+
+        return ['data' => $data, 'total' => $total];
     }
 }

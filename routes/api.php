@@ -5,6 +5,7 @@ use App\Http\Controllers\Api\Admin\AuthController as AdminAuthController;
 use App\Http\Controllers\Api\Admin\CategoryController as AdminCategoryController;
 use App\Http\Controllers\Api\Admin\CourseController as AdminCourseController;
 use App\Http\Controllers\Api\Admin\MediaController as AdminMediaController;
+use App\Http\Controllers\Api\Admin\PageAppearanceController as AdminPageAppearanceController;
 use App\Http\Controllers\Api\Admin\SettingController as AdminSettingController;
 use App\Http\Controllers\Api\CourseController;
 use App\Http\Controllers\Api\HomeController;
@@ -40,6 +41,9 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
             }
 
             Route::apiResource('courses', AdminCourseController::class);
+            Route::get('/page-appearances', [AdminPageAppearanceController::class, 'index'])->name('page-appearances.index');
+            Route::get('/page-appearances/{pageKey}', [AdminPageAppearanceController::class, 'show'])->name('page-appearances.show');
+            Route::patch('/page-appearances/{pageKey}', [AdminPageAppearanceController::class, 'update'])->name('page-appearances.update');
             Route::patch('/courses/{course}/publication', [AdminCourseController::class, 'updatePublication'])->name('courses.publication');
             Route::apiResource('categories', AdminCategoryController::class);
             Route::get('/attendances', AdminAttendanceController::class)->name('attendances.index');

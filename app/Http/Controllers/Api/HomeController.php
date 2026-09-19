@@ -4,7 +4,9 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Http\Resources\CourseResource;
+use App\Http\Resources\HeroResource;
 use App\Models\Course;
+use App\Models\PageAppearance;
 use Illuminate\Http\JsonResponse;
 
 class HomeController extends Controller
@@ -20,7 +22,11 @@ class HomeController extends Controller
             ->take(6)
             ->get();
 
+        $appearance = PageAppearance::query()->with(['heroMedia', 'heroMobileMedia'])->where('page_key', 'home')->first()
+            ?? new PageAppearance(['page_key' => 'home']);
+
         return response()->json([
+            'hero' => (new HeroResource($appearance))->resolve(),
             'featured_courses' => CourseResource::collection($featuredCourses)->resolve(),
             'faqs' => [
                 ['id' => 'enrollment', 'question' => 'Como faço a matrícula?', 'answer' => 'Escolha o curso, fale com a equipe pelo WhatsApp e receba as orientações para concluir sua matrícula.'],

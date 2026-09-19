@@ -15,11 +15,11 @@ class Course extends Model
     /** @use HasFactory<CourseFactory> */
     use HasFactory;
 
-    protected $fillable = ['category_id', 'name', 'short_name', 'slug', 'summary', 'description', 'requirements', 'cover_image_path', 'cover_media_id', 'cover_alt_text', 'meta_title', 'meta_description', 'is_featured', 'is_published', 'sort_order'];
+    protected $fillable = ['category_id', 'name', 'short_name', 'slug', 'summary', 'description', 'requirements', 'cover_image_path', 'cover_media_id', 'cover_alt_text', 'hero_enabled', 'hero_media_id', 'hero_mobile_media_id', 'hero_image_position', 'hero_overlay_preset', 'hero_overlay_opacity', 'meta_title', 'meta_description', 'is_featured', 'is_published', 'sort_order'];
 
     protected function casts(): array
     {
-        return ['requirements' => 'array', 'is_featured' => 'boolean', 'is_published' => 'boolean'];
+        return ['requirements' => 'array', 'is_featured' => 'boolean', 'is_published' => 'boolean', 'hero_enabled' => 'boolean', 'hero_overlay_opacity' => 'integer'];
     }
 
     public function category(): BelongsTo
@@ -30,6 +30,16 @@ class Course extends Model
     public function coverMedia(): BelongsTo
     {
         return $this->belongsTo(Media::class, 'cover_media_id');
+    }
+
+    public function heroMedia(): BelongsTo
+    {
+        return $this->belongsTo(Media::class, 'hero_media_id');
+    }
+
+    public function heroMobileMedia(): BelongsTo
+    {
+        return $this->belongsTo(Media::class, 'hero_mobile_media_id');
     }
 
     /** @return array{url: string, alt_text: string, width: ?int, height: ?int}|null */

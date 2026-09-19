@@ -19,7 +19,7 @@ class MediaController extends Controller
     public function index(ListMediaRequest $request, MediaStorageService $storage): AnonymousResourceCollection
     {
         $data = $request->validated();
-        $media = Media::query()->withCount('courses')
+        $media = Media::query()->withCount($this->usageRelations())
             ->when($data['search'] ?? null, function ($query, string $search): void {
                 $literal = str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], $search);
                 $operator = DB::getDriverName() === 'pgsql' ? 'ILIKE' : 'LIKE';
@@ -41,12 +41,12 @@ class MediaController extends Controller
 
     public function store(StoreMediaRequest $request, MediaLibraryService $library): MediaResource
     {
-        return new MediaResource($library->store($request->file('file'), $request->validated())->loadCount('courses'));
+        return new MediaResource($library->store($request->file('file'), $request->validated())->loadCount($this->usageRelations()));
     }
 
     public function show(Media $media): MediaResource
     {
-        return new MediaResource($media->loadCount('courses'));
+        return new MediaResource($media->loadCount($this->usageRelations()));
     }
 
     public function update(UpdateMediaRequest $request, Media $media): MediaResource
@@ -65,14 +65,12 @@ class MediaController extends Controller
             return $locked;
         });
 
-        return new MediaResource($media->loadCount('courses'));
+        return new MediaResource($media->loadCount($this->usageRelations()));
     }
 
-    public function usages(Media $media): JsonResponse
+    public function usages(Media $media, MediaLibraryService $library): JsonResponse
     {
-        $courses = $media->courses()->select('id', 'name', 'slug', 'is_published')->orderBy('name')->paginate(20);
-
-        return response()->json($courses);
+        return response()->json($library->usages($media));
     }
 
     public function destroy(Media $media, MediaLibraryService $library): JsonResponse
@@ -80,5 +78,11 @@ class MediaController extends Controller
         $library->delete($media);
 
         return response()->json([], 204);
+    }
+
+    /** @return array<int, string> */
+    private function usageRelations(): array
+    {
+        return ['courses', 'heroCourses', 'mobileHeroCourses', 'pageHeroes', 'mobilePageHeroes'];
     }
 }

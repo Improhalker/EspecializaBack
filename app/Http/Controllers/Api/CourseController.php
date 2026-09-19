@@ -4,7 +4,9 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Http\Resources\CourseResource;
+use App\Http\Resources\HeroResource;
 use App\Models\Course;
+use App\Models\PageAppearance;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 
 class CourseController extends Controller
@@ -21,7 +23,12 @@ class CourseController extends Controller
             ->orderBy('id')
             ->get();
 
-        return CourseResource::collection($courses);
+        $appearance = PageAppearance::query()->with(['heroMedia', 'heroMobileMedia'])->where('page_key', 'courses-index')->first()
+            ?? new PageAppearance(['page_key' => 'courses-index']);
+
+        return CourseResource::collection($courses)->additional(['meta' => [
+            'hero' => (new HeroResource($appearance))->resolve(),
+        ]]);
     }
 
     /**
@@ -34,6 +41,8 @@ class CourseController extends Controller
             ->where('slug', $slug)
             ->with([
                 'coverMedia',
+                'heroMedia',
+                'heroMobileMedia',
                 'category',
                 'modalities' => fn ($query) => $query->published()->orderBy('sort_order')->orderBy('id'),
                 'faqs' => fn ($query) => $query->orderBy('sort_order')->orderBy('id'),

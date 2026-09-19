@@ -23,7 +23,7 @@ class CourseController extends Controller
         $validated = $request->validated();
 
         $courses = Course::query()
-            ->with(['coverMedia', 'category', 'modalities' => fn ($query) => $query->orderBy('sort_order')->orderBy('id')])
+            ->with(['coverMedia', 'heroMedia', 'heroMobileMedia', 'category', 'modalities' => fn ($query) => $query->orderBy('sort_order')->orderBy('id')])
             ->when($validated['search'] ?? null, function ($query, string $search): void {
                 $query->where(function ($query) use ($search): void {
                     $query->whereLike('name', "%{$search}%")
@@ -102,6 +102,17 @@ class CourseController extends Controller
             $data['cover_image_path'] = null;
         }
 
+        foreach (['hero_media_id', 'hero_mobile_media_id'] as $field) {
+            if (! isset($data[$field])) {
+                continue;
+            }
+
+            $media = Media::query()->lockForUpdate()->find($data[$field]);
+            if (! $media || $media->status !== 'ready' || $media->visibility !== 'public') {
+                throw ValidationException::withMessages([$field => 'Esta imagem não está disponível. Selecione outra na biblioteca.']);
+            }
+        }
+
         return collect($data)->only([
             'category_id',
             'name',
@@ -113,6 +124,12 @@ class CourseController extends Controller
             'cover_image_path',
             'cover_media_id',
             'cover_alt_text',
+            'hero_enabled',
+            'hero_media_id',
+            'hero_mobile_media_id',
+            'hero_image_position',
+            'hero_overlay_preset',
+            'hero_overlay_opacity',
             'meta_title',
             'meta_description',
             'is_featured',
@@ -178,6 +195,8 @@ class CourseController extends Controller
     {
         return [
             'coverMedia',
+            'heroMedia',
+            'heroMobileMedia',
             'category',
             'modalities' => fn ($query) => $query->orderBy('sort_order')->orderBy('id'),
             'faqs' => fn ($query) => $query->orderBy('sort_order')->orderBy('id'),

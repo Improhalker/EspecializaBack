@@ -23,6 +23,7 @@ class CourseResource extends JsonResource
             'meta_title' => $this->meta_title,
             'meta_description' => $this->meta_description,
             'cover' => $this->resolvedCover(),
+            'hero' => $this->when($request->routeIs('courses.show'), fn () => new HeroResource($this->resource)),
             'description' => $this->when($request->routeIs('courses.show'), $this->description),
             'requirements' => $this->when($request->routeIs('courses.show'), $this->requirements ?? []),
             'category' => $this->whenLoaded('category', fn () => ['id' => $this->category?->id, 'name' => $this->category?->name, 'slug' => $this->category?->slug]),

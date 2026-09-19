@@ -45,6 +45,26 @@ class Media extends Model
         return $this->hasMany(Course::class, 'cover_media_id');
     }
 
+    public function heroCourses(): HasMany
+    {
+        return $this->hasMany(Course::class, 'hero_media_id');
+    }
+
+    public function mobileHeroCourses(): HasMany
+    {
+        return $this->hasMany(Course::class, 'hero_mobile_media_id');
+    }
+
+    public function pageHeroes(): HasMany
+    {
+        return $this->hasMany(PageAppearance::class, 'hero_media_id');
+    }
+
+    public function mobilePageHeroes(): HasMany
+    {
+        return $this->hasMany(PageAppearance::class, 'hero_mobile_media_id');
+    }
+
     public function deliveryUrl(): ?string
     {
         return $this->status === 'ready' ? route('media.delivery', ['media' => $this->uuid]) : null;
