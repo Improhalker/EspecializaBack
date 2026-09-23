@@ -313,6 +313,33 @@ class AdminMediaTest extends TestCase
         Http::assertSentCount(1);
     }
 
+    public function test_cached_bytes_are_reused_only_while_media_remains_public(): void
+    {
+        $media = Media::factory()->create();
+        Http::fake(['storage.example.test/storage/v1/object/authenticated/media/*' => Http::response('image-bytes', 200)]);
+
+        $first = $this->get('/api/media/'.$media->uuid)->assertOk()->assertContent('image-bytes');
+        $second = $this->get('/api/media/'.$media->uuid)->assertOk()->assertContent('image-bytes');
+        $this->assertStringContainsString('media-cache;desc="miss"', $first->headers->get('Server-Timing'));
+        $this->assertStringContainsString('media-cache;desc="hit"', $second->headers->get('Server-Timing'));
+        Http::assertSentCount(1);
+
+        $media->update(['visibility' => 'private']);
+        $this->get('/api/media/'.$media->uuid)->assertNotFound();
+        Http::assertSentCount(1);
+    }
+
+    public function test_warm_command_populates_media_cache_before_the_first_visit(): void
+    {
+        $media = Media::factory()->create();
+        Http::fake(['storage.example.test/storage/v1/object/authenticated/media/*' => Http::response('image-bytes', 200)]);
+
+        $this->artisan('media:warm-cache')->assertSuccessful();
+        $this->get('/api/media/'.$media->uuid)->assertOk()->assertContent('image-bytes');
+
+        Http::assertSentCount(1);
+    }
+
     public function test_private_media_cannot_be_delivered_publicly(): void
     {
         $media = Media::factory()->create(['visibility' => 'private']);

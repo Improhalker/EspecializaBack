@@ -2,6 +2,8 @@
 
 namespace App\Models;
 
+use App\Services\MediaDeliveryCache;
+use App\Services\PublicCourseCache;
 use Database\Factories\MediaFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -28,6 +30,18 @@ class Media extends Model
     {
         static::creating(function (Media $media): void {
             $media->uuid ??= (string) Str::uuid();
+        });
+
+        static::updated(function (Media $media): void {
+            if ($media->wasChanged(['status', 'visibility'])) {
+                app(MediaDeliveryCache::class)->forget($media);
+                app(PublicCourseCache::class)->invalidate();
+            }
+        });
+
+        static::deleted(function (Media $media): void {
+            app(MediaDeliveryCache::class)->forget($media);
+            app(PublicCourseCache::class)->invalidate();
         });
     }
 
@@ -72,6 +86,8 @@ class Media extends Model
 
     public function deliveryUrl(): ?string
     {
-        return $this->status === 'ready' ? route('media.delivery', ['media' => $this->uuid]) : null;
+        return $this->status === 'ready'
+            ? rtrim(config('app.url'), '/').route('media.delivery', ['media' => $this->uuid], false)
+            : null;
     }
 }

@@ -12,7 +12,7 @@ use Throwable;
 
 class MediaLibraryService
 {
-    public function __construct(private ImageProcessingService $processor, private MediaStorageService $storage) {}
+    public function __construct(private ImageProcessingService $processor, private MediaStorageService $storage, private MediaDeliveryCache $deliveryCache) {}
 
     /** @param array<string, mixed> $data */
     public function store(UploadedFile $file, array $data): Media
@@ -54,6 +54,9 @@ class MediaLibraryService
         try {
             $this->storage->put($media, $content);
             $media->update(['status' => 'ready']);
+            if ($media->visibility === 'public') {
+                $this->deliveryCache->put($media, $content);
+            }
         } catch (Throwable $exception) {
             $media->update(['status' => 'failed']);
             try {
@@ -86,6 +89,7 @@ class MediaLibraryService
             return $locked;
         });
 
+        $this->deliveryCache->forget($media);
         $this->storage->delete($media);
         $media->delete();
     }

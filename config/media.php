@@ -10,4 +10,5 @@ return [
     'webp_quality' => (int) env('MEDIA_WEBP_QUALITY', 82),
     'max_svg_kb' => (int) env('MEDIA_MAX_SVG_KB', 512),
     'delivery_cache_seconds' => (int) env('MEDIA_CACHE_SECONDS', 300),
+    'server_cache_seconds' => (int) env('PUBLIC_MEDIA_CACHE_SECONDS', 604800),
 ];

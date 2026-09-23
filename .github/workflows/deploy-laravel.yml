@@ -146,6 +146,8 @@ jobs:
 
           php -r 'exit(version_compare(PHP_VERSION, "8.4.0", ">=") && version_compare(PHP_VERSION, "8.5.0", "<") ? 0 : 1);'
           php -r 'foreach (["fileinfo", "gd", "mbstring", "openssl", "pdo_pgsql"] as $extension) { if (! extension_loaded($extension)) { fwrite(STDERR, "Missing PHP extension: {$extension}\n"); exit(1); } }'
+          cd "$DEPLOY_PATH"
+          php -r '$app = require "bootstrap/app.php"; $app->make(\Illuminate\Contracts\Console\Kernel::class)->bootstrap(); if (rtrim((string) config("app.url"), "/") !== "https://api.especializacondutor.com.br") { fwrite(STDERR, "APP_URL must use the public HTTPS API origin for cached media URLs.\n"); exit(1); }'
 
           maintenance_enabled=0
           cleanup() {
@@ -182,9 +184,11 @@ jobs:
           php artisan config:cache --no-interaction
           php artisan route:cache --no-interaction
           php artisan view:cache --no-interaction
+          php artisan media:warm-cache --no-interaction
           php artisan queue:restart --no-interaction || true
           php artisan up --no-interaction
           maintenance_enabled=0
+          php artisan courses:warm-cache --no-interaction
 
           rm -rf "$RELEASE_PATH"
           trap - EXIT

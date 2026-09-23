@@ -16,7 +16,7 @@ use App\Http\Controllers\Api\TestimonialController;
 use App\Http\Controllers\Api\WhatsappClickController;
 use Illuminate\Support\Facades\Route;
 
-Route::get('/media/{media:uuid}', MediaDeliveryController::class)->whereUuid('media')->name('media.delivery');
+Route::get('/media/{media}', MediaDeliveryController::class)->whereUuid('media')->name('media.delivery');
 
 Route::get('/home', HomeController::class)->name('home');
 Route::get('/courses', [CourseController::class, 'index'])->name('courses.index');
