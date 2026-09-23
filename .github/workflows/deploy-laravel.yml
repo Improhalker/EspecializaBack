@@ -62,7 +62,7 @@ jobs:
       SSH_PORT: ${{ secrets.SSH_PORT }}
       SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
       SSH_KNOWN_HOSTS: ${{ secrets.SSH_KNOWN_HOSTS }}
-      HEALTHCHECK_URL: ${{ vars.DEPLOY_HEALTHCHECK_URL }}
+      HEALTHCHECK_URL: https://api.especializacondutor.com.br/api/home
       RELEASE_PATH: /tmp/especializa-api-${{ github.sha }}
 
     steps:
@@ -85,7 +85,7 @@ jobs:
         run: |
           set -euo pipefail
 
-          for name in SSH_HOST SSH_USER SSH_PRIVATE_KEY SSH_KNOWN_HOSTS HEALTHCHECK_URL; do
+          for name in SSH_HOST SSH_USER SSH_PRIVATE_KEY SSH_KNOWN_HOSTS; do
             if [ -z "${!name:-}" ]; then
               echo "Missing required GitHub configuration: ${name}" >&2
               exit 1
