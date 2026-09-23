@@ -38,7 +38,7 @@ class CourseCatalogTest extends TestCase
             ->assertOk()
             ->assertJsonPath('data.id', $course->id)
             ->assertJsonPath('data.modalities.0.id', $modality->id)
-            ->assertJsonPath('data.faqs.0.id', $faq->id)
+            ->assertJsonPath('data.faqs.0.id', "course-{$faq->id}")
             ->assertJsonCount(1, 'data.modalities');
     }
 

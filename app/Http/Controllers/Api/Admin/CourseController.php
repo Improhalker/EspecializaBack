@@ -10,6 +10,7 @@ use App\Http\Requests\UpdateCourseRequest;
 use App\Http\Resources\AdminCourseResource;
 use App\Models\Course;
 use App\Models\Media;
+use App\Models\SharedFaq;
 use App\Services\MediaAltText;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
@@ -52,12 +53,12 @@ class CourseController extends Controller
             return $course;
         });
 
-        return new AdminCourseResource($course->load($this->relations()));
+        return new AdminCourseResource($this->attachSharedFaqs($course->load($this->relations())));
     }
 
     public function show(Course $course): AdminCourseResource
     {
-        return new AdminCourseResource($course->load($this->relations()));
+        return new AdminCourseResource($this->attachSharedFaqs($course->load($this->relations())));
     }
 
     public function update(UpdateCourseRequest $request, Course $course): AdminCourseResource
@@ -68,14 +69,14 @@ class CourseController extends Controller
             $this->syncRelations($course, $data);
         });
 
-        return new AdminCourseResource($course->fresh()->load($this->relations()));
+        return new AdminCourseResource($this->attachSharedFaqs($course->fresh()->load($this->relations())));
     }
 
     public function updatePublication(UpdateCoursePublicationRequest $request, Course $course): AdminCourseResource
     {
         $course->update($request->validated());
 
-        return new AdminCourseResource($course->load($this->relations()));
+        return new AdminCourseResource($this->attachSharedFaqs($course->load($this->relations())));
     }
 
     public function destroy(Course $course): JsonResponse
@@ -186,6 +187,21 @@ class CourseController extends Controller
 
             $course->faqs()->whereNotIn('id', $receivedFaqIds)->delete();
         }
+    }
+
+    /**
+     * Attach the shared FAQs currently applicable to this course as a read-only
+     * reference for the admin course form (any status, so drafts are visible too).
+     */
+    private function attachSharedFaqs(Course $course): Course
+    {
+        $course->setRelation('sharedFaqs', SharedFaq::query()
+            ->applicableTo($course->id)
+            ->orderBy('sort_order')
+            ->orderBy('id')
+            ->get());
+
+        return $course;
     }
 
     /**

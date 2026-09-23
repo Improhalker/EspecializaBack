@@ -7,6 +7,7 @@ use App\Http\Resources\CourseResource;
 use App\Http\Resources\HeroResource;
 use App\Models\Course;
 use App\Models\PageAppearance;
+use App\Models\SharedFaq;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 
 class CourseController extends Controller
@@ -48,6 +49,13 @@ class CourseController extends Controller
                 'faqs' => fn ($query) => $query->orderBy('sort_order')->orderBy('id'),
             ])
             ->firstOrFail();
+
+        $course->setRelation('sharedFaqs', SharedFaq::query()
+            ->published()
+            ->applicableTo($course->id)
+            ->orderBy('sort_order')
+            ->orderBy('id')
+            ->get());
 
         return new CourseResource($course);
     }

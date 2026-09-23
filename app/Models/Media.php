@@ -65,6 +65,11 @@ class Media extends Model
         return $this->hasMany(PageAppearance::class, 'hero_mobile_media_id');
     }
 
+    public function testimonialAvatars(): HasMany
+    {
+        return $this->hasMany(Testimonial::class, 'avatar_media_id');
+    }
+
     public function deliveryUrl(): ?string
     {
         return $this->status === 'ready' ? route('media.delivery', ['media' => $this->uuid]) : null;

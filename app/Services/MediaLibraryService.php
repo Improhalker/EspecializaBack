@@ -99,6 +99,7 @@ class MediaLibraryService
             ['relation' => 'mobileHeroCourses', 'type' => 'course', 'role' => 'Banner mobile do curso'],
             ['relation' => 'pageHeroes', 'type' => 'page', 'role' => 'Banner da página'],
             ['relation' => 'mobilePageHeroes', 'type' => 'page', 'role' => 'Banner mobile da página'],
+            ['relation' => 'testimonialAvatars', 'type' => 'testimonial', 'role' => 'Foto do depoimento'],
         ];
         $data = [];
         $total = 0;
@@ -112,13 +113,13 @@ class MediaLibraryService
             }
 
             foreach ($query->orderBy('id')->limit($remaining)->get() as $usage) {
-                $isCourse = $group['type'] === 'course';
+                $isPage = $group['type'] === 'page';
                 $data[] = [
                     'id' => $usage->id,
-                    'name' => $isCourse ? $usage->name : config('page_appearances.pages.'.$usage->page_key.'.label', $usage->page_key),
+                    'name' => $isPage ? config('page_appearances.pages.'.$usage->page_key.'.label', $usage->page_key) : $usage->name,
                     'type' => $group['type'],
                     'role' => $group['role'],
-                    'page_key' => $isCourse ? null : $usage->page_key,
+                    'page_key' => $isPage ? $usage->page_key : null,
                 ];
             }
         }

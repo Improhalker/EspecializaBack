@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Course extends Model
@@ -68,6 +69,11 @@ class Course extends Model
     public function faqs(): HasMany
     {
         return $this->hasMany(CourseFaq::class);
+    }
+
+    public function sharedFaqs(): BelongsToMany
+    {
+        return $this->belongsToMany(SharedFaq::class, 'course_shared_faq')->withPivot('sort_order');
     }
 
     public function scopePublished(Builder $query): Builder

@@ -66,6 +66,11 @@ class AdminCourseResource extends JsonResource
                 'answer' => $faq->answer,
                 'sort_order' => $faq->sort_order,
             ])->values()),
+            'shared_faqs' => $this->whenLoaded('sharedFaqs', fn () => $this->sharedFaqs->map(fn ($faq) => [
+                'id' => $faq->id,
+                'question' => $faq->question,
+                'is_published' => $faq->is_published,
+            ])->values()),
             'created_at' => $this->created_at?->toISOString(),
             'updated_at' => $this->updated_at?->toISOString(),
         ];
