@@ -9,12 +9,15 @@ use App\Http\Requests\UpdateSharedFaqPublicationRequest;
 use App\Http\Requests\UpdateSharedFaqRequest;
 use App\Http\Resources\AdminSharedFaqResource;
 use App\Models\SharedFaq;
+use App\Services\PublicCourseCache;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Support\Facades\DB;
 
 class SharedFaqController extends Controller
 {
+    public function __construct(private PublicCourseCache $publicCache) {}
+
     public function index(ListSharedFaqsRequest $request): AnonymousResourceCollection
     {
         $validated = $request->validated();
@@ -51,6 +54,7 @@ class SharedFaqController extends Controller
 
             return $faq;
         });
+        $this->publicCache->invalidate();
 
         return new AdminSharedFaqResource($faq->load('courses')->loadCount('courses'));
     }
@@ -67,6 +71,7 @@ class SharedFaqController extends Controller
             $faq->update($this->faqAttributes($data));
             $faq->courses()->sync($this->courseIds($data));
         });
+        $this->publicCache->invalidate();
 
         return new AdminSharedFaqResource($faq->fresh()->load('courses')->loadCount('courses'));
     }
@@ -74,6 +79,7 @@ class SharedFaqController extends Controller
     public function updatePublication(UpdateSharedFaqPublicationRequest $request, SharedFaq $faq): AdminSharedFaqResource
     {
         $faq->update($request->validated());
+        $this->publicCache->invalidate();
 
         return new AdminSharedFaqResource($faq->load('courses')->loadCount('courses'));
     }
@@ -81,6 +87,7 @@ class SharedFaqController extends Controller
     public function destroy(SharedFaq $faq): JsonResponse
     {
         $faq->delete();
+        $this->publicCache->invalidate();
 
         return response()->json([], 204);
     }

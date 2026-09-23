@@ -10,6 +10,7 @@ use App\Http\Resources\MediaResource;
 use App\Models\Media;
 use App\Services\MediaLibraryService;
 use App\Services\MediaStorageService;
+use App\Services\PublicCourseCache;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Support\Facades\DB;
@@ -49,7 +50,7 @@ class MediaController extends Controller
         return new MediaResource($media->loadCount($this->usageRelations()));
     }
 
-    public function update(UpdateMediaRequest $request, Media $media): MediaResource
+    public function update(UpdateMediaRequest $request, Media $media, PublicCourseCache $publicCache): MediaResource
     {
         $media = DB::transaction(function () use ($request, $media): Media {
             $locked = Media::query()->lockForUpdate()->findOrFail($media->id);
@@ -64,6 +65,7 @@ class MediaController extends Controller
 
             return $locked;
         });
+        $publicCache->invalidate();
 
         return new MediaResource($media->loadCount($this->usageRelations()));
     }

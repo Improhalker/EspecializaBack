@@ -62,6 +62,17 @@ class AdminCourseTest extends TestCase
         $this->assertDatabaseHas('courses', ['id' => $draftCourse->id, 'is_published' => true]);
     }
 
+    public function test_unpublishing_a_course_invalidates_the_public_detail_cache(): void
+    {
+        $course = Course::factory()->create(['slug' => 'curso-publicado']);
+        $this->getJson('/api/courses/curso-publicado')->assertOk();
+        $this->actingAsAdministrator();
+
+        $this->patchJson("/api/admin/courses/{$course->id}/publication", ['is_published' => false])->assertOk();
+
+        $this->getJson('/api/courses/curso-publicado')->assertNotFound();
+    }
+
     public function test_administrator_can_edit_a_course_without_replacing_its_existing_modality(): void
     {
         $category = Category::factory()->create();

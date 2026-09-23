@@ -12,6 +12,7 @@ use App\Models\Course;
 use App\Models\Media;
 use App\Models\SharedFaq;
 use App\Services\MediaAltText;
+use App\Services\PublicCourseCache;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Support\Facades\DB;
@@ -19,6 +20,8 @@ use Illuminate\Validation\ValidationException;
 
 class CourseController extends Controller
 {
+    public function __construct(private PublicCourseCache $publicCache) {}
+
     public function index(ListCoursesRequest $request): AnonymousResourceCollection
     {
         $validated = $request->validated();
@@ -52,6 +55,7 @@ class CourseController extends Controller
 
             return $course;
         });
+        $this->publicCache->invalidate();
 
         return new AdminCourseResource($this->attachSharedFaqs($course->load($this->relations())));
     }
@@ -68,6 +72,7 @@ class CourseController extends Controller
             $course->update($this->courseAttributes($data));
             $this->syncRelations($course, $data);
         });
+        $this->publicCache->invalidate();
 
         return new AdminCourseResource($this->attachSharedFaqs($course->fresh()->load($this->relations())));
     }
@@ -75,6 +80,7 @@ class CourseController extends Controller
     public function updatePublication(UpdateCoursePublicationRequest $request, Course $course): AdminCourseResource
     {
         $course->update($request->validated());
+        $this->publicCache->invalidate();
 
         return new AdminCourseResource($this->attachSharedFaqs($course->load($this->relations())));
     }
@@ -82,6 +88,7 @@ class CourseController extends Controller
     public function destroy(Course $course): JsonResponse
     {
         $course->delete();
+        $this->publicCache->invalidate();
 
         return response()->json([], 204);
     }
