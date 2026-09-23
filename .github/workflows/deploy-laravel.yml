@@ -143,6 +143,9 @@ jobs:
 
           test -f "$DEPLOY_PATH/.env"
           test -f "$RELEASE_PATH/artisan"
+          test "$(id -u)" -eq 0
+          id www-data > /dev/null
+          command -v runuser > /dev/null
 
           php -r 'exit(version_compare(PHP_VERSION, "8.4.0", ">=") && version_compare(PHP_VERSION, "8.5.0", "<") ? 0 : 1);'
           php -r 'foreach (["fileinfo", "gd", "mbstring", "openssl", "pdo_pgsql"] as $extension) { if (! extension_loaded($extension)) { fwrite(STDERR, "Missing PHP extension: {$extension}\n"); exit(1); } }'
@@ -176,7 +179,6 @@ jobs:
 
           cd "$DEPLOY_PATH"
           mkdir -p storage/framework/{cache,sessions,views} storage/logs bootstrap/cache
-          chmod -R ug+rwX storage bootstrap/cache
 
           php artisan optimize:clear --no-interaction
           php artisan migrate --force --no-interaction
@@ -184,11 +186,13 @@ jobs:
           php artisan config:cache --no-interaction
           php artisan route:cache --no-interaction
           php artisan view:cache --no-interaction
-          php artisan media:warm-cache --no-interaction
+          chown -R www-data:www-data storage bootstrap/cache
+          chmod -R ug+rwX storage bootstrap/cache
+          runuser -u www-data -- php artisan media:warm-cache --no-interaction
           php artisan queue:restart --no-interaction || true
           php artisan up --no-interaction
           maintenance_enabled=0
-          php artisan courses:warm-cache --no-interaction
+          runuser -u www-data -- php artisan courses:warm-cache --no-interaction
 
           rm -rf "$RELEASE_PATH"
           trap - EXIT
@@ -204,3 +208,12 @@ jobs:
             --retry-delay 5 \
             --max-time 20 \
             "$HEALTHCHECK_URL" > /dev/null
+
+          COURSE_SLUG="$(
+            curl --fail --silent --show-error --max-time 20 "${HEALTHCHECK_URL%/home}/courses" |
+            php -r '$payload = json_decode(stream_get_contents(STDIN), true); echo rawurlencode($payload["data"][0]["slug"] ?? "");'
+          )"
+          if [ -n "$COURSE_SLUG" ]; then
+            curl --fail --silent --show-error --max-time 20 \
+              "${HEALTHCHECK_URL%/home}/courses/$COURSE_SLUG" > /dev/null
+          fi
