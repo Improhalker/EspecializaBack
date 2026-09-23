@@ -1,3 +1,80 @@
+# Especializa Condutor — shared project context
+
+## Product and language
+
+- Especializa Condutor is a Brazilian Portuguese site for specialized driver courses, with a public catalog, course detail pages, WhatsApp conversion tracking, SEO, and an authenticated administrative panel.
+- All visitor-facing and administrator-facing copy must be written in natural Brazilian Portuguese (`pt-BR`). Keep technical identifiers in English when that matches the existing code.
+- Preserve the established visual identity: navy `#0e3459`, supporting blue `#136ab7`, white, neutral grays, and WhatsApp green only for WhatsApp actions.
+- Public changes must be responsive, accessible, keyboard usable, and checked at desktop and mobile widths. Respect `prefers-reduced-motion` when adding motion.
+
+## Paired repositories
+
+This product is split into two sibling repositories. Changes often require inspecting both contracts before editing either side.
+
+- Back-end, this repository: `../EspecializaBack` — Laravel 13 API and public HTML/SEO delivery, PHP `^8.3`, Sanctum, PHPUnit, PostgreSQL on Supabase, and Supabase Storage.
+- Front-end: `../especializaCondutor2026` — Vue 3.5 with Vite 8, Vue Router, public site, and administrative interface.
+- Production frontend assets are built in the Vue repository's `dist` directory. Laravel serves that build through `PublicSiteController`; the default path is the sibling `../especializaCondutor2026/dist` and may be overridden with `FRONTEND_BUILD_PATH`.
+- The repositories have separate Git histories and remotes. Run Git commands from the repository being changed and never assume one commit contains both sides.
+
+## Non-negotiable architecture
+
+- Vue must never connect directly to Supabase Database or Supabase Storage. Do not add `supabase-js`, expose Supabase keys through Vite, or construct privileged Storage URLs in the browser.
+- All database access, media upload, listing, processing, deletion, usage checks, and media delivery happen through the Laravel API.
+- Supabase credentials are server-only environment variables. Never commit or print secret/service-role keys. The relevant names are documented in `.env.example`.
+- PostgreSQL stores media metadata and relationships, never image binaries.
+- Public course responses provide ready-to-render cover data (`url`, `alt_text`, dimensions). Do not expose internal bucket paths or privileged credentials to Vue.
+- Public media delivery currently uses Laravel's `/api/media/{uuid}` endpoint. The `media` bucket is private and is prepared with `php artisan media:prepare` after server credentials are configured.
+- A course may use `cover_media_id`; keep compatibility with legacy cover URLs until the old records are deliberately migrated.
+- Administrative endpoints require Sanctum plus the `admin` and `password.changed` middleware. Keep public and protected routes separated.
+
+## Current product surface
+
+- Public Vue routes: `/`, `/cursos`, and `/cursos/:slug`.
+- Admin Vue routes include `/admin`, `/admin/cursos`, `/admin/midias`, `/admin/aparencia`, `/admin/atendimentos`, `/admin/configuracoes`, and `/admin/logs`.
+- Public API routes include home data, course catalog/details, media delivery, and WhatsApp click tracking.
+- Admin API modules include authentication, courses, categories, media library, page appearance, attendances, and settings.
+- The media module processes JPG/PNG/WebP with Intervention Image, validates and sanitizes SVG separately, stores optimized metadata, blocks deletion while in use, and returns final delivery URLs through `MediaResource`.
+- Page and course hero appearance is data-driven. Reuse the existing hero/media components and API resources instead of creating parallel implementations.
+
+## Change log (shared, in the frontend repo)
+
+- The project keeps a simple, human- and agent-editable change log as a JSON array at `../especializaCondutor2026/public/logs.json` (served as-is at `/logs.json`; read at runtime by the Admin "Logs" page in the Vue app — no API, database, or endpoint for this).
+- Whenever you finish a relevant change in this repository (or in the frontend repository), append one entry to that JSON array. Do not build a Laravel endpoint, table, or model for this — it is intentionally a flat file.
+- Entry format (keep it exactly this shape):
+  ```json
+  { "id": 2, "date": "2026-09-23", "content": "Short, clear description of what changed." }
+  ```
+- `id`: unique, incrementing integer — read the current highest `id` in the file and add 1.
+- `date`: `YYYY-MM-DD`.
+- `content`: short plain-text sentence in Portuguese describing the change.
+
+## Working safely in the repositories
+
+- Start by reading `git status` and the relevant diffs in both repositories. The working trees may contain intentional user changes; preserve them and do not reset, clean, checkout, or rewrite unrelated files.
+- Treat local development servers as managed resources. Before starting Laravel, inspect the target port and stop stale `artisan serve`/PHP development processes after confirming their command line; never open extra backend instances or alternate ports to work around a conflict. Stop every temporary server created for tests in the same turn. When local work finishes, restore exactly one official Especializa backend from this repository at `http://localhost:8000` with a single worker, verify `/api/home`, and leave no orphaned test servers running.
+- Inspect sibling controllers, requests, resources, services, Vue components, and styles before adding a new abstraction. Reuse the existing HTTP clients in `src/services/api.js` and `src/services/adminApi.js`.
+- Keep API response shapes consistent with the existing Resources and controllers. When a contract changes, update and verify both Laravel and Vue consumers.
+- Do not use mock data in integrated screens. Empty, loading, error, retry, and permission states must come from the real API flow.
+- Do not add or upgrade dependencies without explicit approval. Confirm installed versions before using version-specific APIs.
+- Keep environment-specific values in `.env`; update `.env.example` with safe placeholders when a new variable is required.
+- Avoid broad formatting or refactors while delivering a focused change.
+
+## Validation before handing work back
+
+- Back-end: run the narrowest relevant PHPUnit feature tests with `php artisan test --compact ...`. For broad API changes, run the complete suite when practical.
+- After changing PHP, run `vendor/bin/pint --dirty --format agent` as required below.
+- Front-end: run `npm run build`. There is currently no frontend test script, so visually verify affected public/admin flows in the browser when UI behavior or layout changes.
+- For responsive UI changes, check at least one desktop and one mobile viewport. Confirm loading, error, empty, keyboard focus, and long Portuguese text where relevant.
+- For changes spanning both repositories, report validation for each repository separately.
+- Do not commit, push, deploy, or modify production data unless the user explicitly requests that action.
+
+## Deployment notes
+
+- Build Vue before deploying Laravel-served public pages: run `npm ci` when dependencies need installation, then `npm run build` in the frontend repository.
+- Laravel deployment must install production Composer dependencies, run migrations with `--force`, cache/optimize the application as appropriate for the server, and ensure the configured frontend build path is readable.
+- Production SEO should use the canonical HTTPS `SITE_URL`; set `SITE_INDEXABLE=true` only when the public domain and deployment are ready to be indexed.
+- Never place Supabase credentials in the frontend repository or in `VITE_*` variables.
+
 <laravel-boost-guidelines>
 === foundation rules ===
 
