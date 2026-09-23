@@ -147,7 +147,7 @@ jobs:
           php -r 'exit(version_compare(PHP_VERSION, "8.4.0", ">=") && version_compare(PHP_VERSION, "8.5.0", "<") ? 0 : 1);'
           php -r 'foreach (["fileinfo", "gd", "mbstring", "openssl", "pdo_pgsql"] as $extension) { if (! extension_loaded($extension)) { fwrite(STDERR, "Missing PHP extension: {$extension}\n"); exit(1); } }'
           cd "$DEPLOY_PATH"
-          php -r '$app = require "bootstrap/app.php"; $app->make(\Illuminate\Contracts\Console\Kernel::class)->bootstrap(); if (rtrim((string) config("app.url"), "/") !== "https://api.especializacondutor.com.br") { fwrite(STDERR, "APP_URL must use the public HTTPS API origin for cached media URLs.\n"); exit(1); }'
+          php -r 'require "vendor/autoload.php"; $app = require "bootstrap/app.php"; $app->make(\Illuminate\Contracts\Console\Kernel::class)->bootstrap(); if (rtrim((string) config("app.url"), "/") !== "https://api.especializacondutor.com.br") { fwrite(STDERR, "APP_URL must use the public HTTPS API origin for cached media URLs.\n"); exit(1); }'
 
           maintenance_enabled=0
           cleanup() {
