@@ -111,21 +111,30 @@ jobs:
         run: |
           set -euo pipefail
 
-          SSH_COMMAND="ssh -i $HOME/.ssh/especializa_deploy -p $SSH_PORT -o BatchMode=yes -o StrictHostKeyChecking=yes"
+          SSH_COMMAND="ssh -i $HOME/.ssh/especializa_deploy -p $SSH_PORT -o BatchMode=yes -o StrictHostKeyChecking=yes -o ServerAliveInterval=15 -o ServerAliveCountMax=3"
 
           $SSH_COMMAND "$SSH_USER@$SSH_HOST" "rm -rf '$RELEASE_PATH' && mkdir -p '$RELEASE_PATH'"
 
-          rsync -rltz --delete \
-            --exclude='.env' \
-            --exclude='.git/' \
-            --exclude='.github/' \
-            --exclude='bootstrap/cache/' \
-            --exclude='node_modules/' \
-            --exclude='public/storage' \
-            --exclude='storage/' \
-            --exclude='tests/' \
-            -e "$SSH_COMMAND" \
-            ./ "$SSH_USER@$SSH_HOST:$RELEASE_PATH/"
+          for attempt in 1 2 3; do
+            if rsync -rltz --delete --partial \
+              --exclude='.env' \
+              --exclude='.git/' \
+              --exclude='.github/' \
+              --exclude='bootstrap/cache/' \
+              --exclude='node_modules/' \
+              --exclude='public/storage' \
+              --exclude='storage/' \
+              --exclude='tests/' \
+              -e "$SSH_COMMAND" \
+              ./ "$SSH_USER@$SSH_HOST:$RELEASE_PATH/"; then
+              break
+            fi
+            if [ "$attempt" -eq 3 ]; then
+              echo "Release upload failed after 3 attempts" >&2
+              exit 1
+            fi
+            sleep 5
+          done
 
       - name: Activate release
         shell: bash
@@ -140,12 +149,11 @@ jobs:
             "$SSH_USER@$SSH_HOST" \
             "DEPLOY_PATH='$DEPLOY_PATH' RELEASE_PATH='$RELEASE_PATH' bash -s" <<'REMOTE_SCRIPT'
           set -Eeuo pipefail
+          umask 0002
 
           test -f "$DEPLOY_PATH/.env"
           test -f "$RELEASE_PATH/artisan"
-          test "$(id -u)" -eq 0
-          id www-data > /dev/null
-          command -v runuser > /dev/null
+          id -nG | tr ' ' '\n' | grep -qx www-data
 
           php -r 'exit(version_compare(PHP_VERSION, "8.4.0", ">=") && version_compare(PHP_VERSION, "8.5.0", "<") ? 0 : 1);'
           php -r 'foreach (["fileinfo", "gd", "mbstring", "openssl", "pdo_pgsql"] as $extension) { if (! extension_loaded($extension)) { fwrite(STDERR, "Missing PHP extension: {$extension}\n"); exit(1); } }'
@@ -186,13 +194,14 @@ jobs:
           php artisan config:cache --no-interaction
           php artisan route:cache --no-interaction
           php artisan view:cache --no-interaction
-          chown -R www-data:www-data storage bootstrap/cache
-          chmod -R ug+rwX storage bootstrap/cache
-          runuser -u www-data -- php artisan media:warm-cache --no-interaction
+          find storage bootstrap/cache \( -type d -o -type f \) -user "$(id -un)" -exec chgrp www-data {} +
+          find storage bootstrap/cache \( -type d -o -type f \) -user "$(id -un)" -exec chmod g+rwX {} +
+          find storage bootstrap/cache -type d -user "$(id -un)" -exec chmod g+s {} +
+          php artisan media:warm-cache --no-interaction
           php artisan queue:restart --no-interaction || true
           php artisan up --no-interaction
           maintenance_enabled=0
-          runuser -u www-data -- php artisan courses:warm-cache --no-interaction
+          php artisan courses:warm-cache --no-interaction
 
           rm -rf "$RELEASE_PATH"
           trap - EXIT
