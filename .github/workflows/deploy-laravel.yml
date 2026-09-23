@@ -1,0 +1,202 @@
+name: Deploy Laravel API
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: especializa-api-production
+  cancel-in-progress: false
+
+env:
+  PHP_VERSION: "8.4"
+  DEPLOY_PATH: /var/www/especializa-back
+
+jobs:
+  verify:
+    name: Validate application
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ env.PHP_VERSION }}
+          extensions: bcmath, curl, fileinfo, gd, intl, mbstring, openssl, pdo_sqlite, sqlite3, xml, zip
+          coverage: none
+          tools: composer:v2
+
+      - name: Install test dependencies
+        run: composer install --prefer-dist --no-progress --no-interaction
+
+      - name: Prepare test environment
+        run: |
+          cp .env.example .env
+          php artisan key:generate --no-interaction
+
+      - name: Check code style
+        run: vendor/bin/pint --test
+
+      - name: Run automated tests
+        run: php artisan test --compact
+
+  deploy:
+    name: Deploy to production
+    needs: verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: production
+
+    env:
+      SSH_HOST: ${{ secrets.SSH_HOST }}
+      SSH_USER: ${{ secrets.SSH_USER }}
+      SSH_PORT: ${{ secrets.SSH_PORT }}
+      SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+      SSH_KNOWN_HOSTS: ${{ secrets.SSH_KNOWN_HOSTS }}
+      HEALTHCHECK_URL: ${{ vars.DEPLOY_HEALTHCHECK_URL }}
+      RELEASE_PATH: /tmp/especializa-api-${{ github.sha }}
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ env.PHP_VERSION }}
+          extensions: bcmath, curl, fileinfo, gd, intl, mbstring, openssl, pdo_pgsql, xml, zip
+          coverage: none
+          tools: composer:v2
+
+      - name: Install production dependencies
+        run: composer install --no-dev --prefer-dist --optimize-autoloader --no-progress --no-interaction
+
+      - name: Validate deployment configuration
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          for name in SSH_HOST SSH_USER SSH_PRIVATE_KEY SSH_KNOWN_HOSTS HEALTHCHECK_URL; do
+            if [ -z "${!name:-}" ]; then
+              echo "Missing required GitHub configuration: ${name}" >&2
+              exit 1
+            fi
+          done
+
+          echo "SSH_PORT=${SSH_PORT:-22}" >> "$GITHUB_ENV"
+
+      - name: Configure SSH
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          install -m 700 -d "$HOME/.ssh"
+          printf '%s\n' "$SSH_PRIVATE_KEY" | tr -d '\r' > "$HOME/.ssh/especializa_deploy"
+          chmod 600 "$HOME/.ssh/especializa_deploy"
+          printf '%s\n' "$SSH_KNOWN_HOSTS" > "$HOME/.ssh/known_hosts"
+          chmod 600 "$HOME/.ssh/known_hosts"
+          ssh-keygen -y -f "$HOME/.ssh/especializa_deploy" > /dev/null
+
+      - name: Upload release candidate
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          SSH_COMMAND="ssh -i $HOME/.ssh/especializa_deploy -p $SSH_PORT -o BatchMode=yes -o StrictHostKeyChecking=yes"
+
+          $SSH_COMMAND "$SSH_USER@$SSH_HOST" "rm -rf '$RELEASE_PATH' && mkdir -p '$RELEASE_PATH'"
+
+          rsync -rltz --delete \
+            --exclude='.env' \
+            --exclude='.git/' \
+            --exclude='.github/' \
+            --exclude='bootstrap/cache/' \
+            --exclude='node_modules/' \
+            --exclude='public/storage' \
+            --exclude='storage/' \
+            --exclude='tests/' \
+            -e "$SSH_COMMAND" \
+            ./ "$SSH_USER@$SSH_HOST:$RELEASE_PATH/"
+
+      - name: Activate release
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          ssh \
+            -i "$HOME/.ssh/especializa_deploy" \
+            -p "$SSH_PORT" \
+            -o BatchMode=yes \
+            -o StrictHostKeyChecking=yes \
+            "$SSH_USER@$SSH_HOST" \
+            "DEPLOY_PATH='$DEPLOY_PATH' RELEASE_PATH='$RELEASE_PATH' bash -s" <<'REMOTE_SCRIPT'
+          set -Eeuo pipefail
+
+          test -f "$DEPLOY_PATH/.env"
+          test -f "$RELEASE_PATH/artisan"
+
+          php -r 'exit(version_compare(PHP_VERSION, "8.4.0", ">=") && version_compare(PHP_VERSION, "8.5.0", "<") ? 0 : 1);'
+          php -r 'foreach (["fileinfo", "gd", "mbstring", "openssl", "pdo_pgsql"] as $extension) { if (! extension_loaded($extension)) { fwrite(STDERR, "Missing PHP extension: {$extension}\n"); exit(1); } }'
+
+          maintenance_enabled=0
+          cleanup() {
+            status=$?
+            if [ "$maintenance_enabled" -eq 1 ]; then
+              cd "$DEPLOY_PATH"
+              php artisan up --no-interaction || true
+            fi
+            rm -rf "$RELEASE_PATH"
+            exit "$status"
+          }
+          trap cleanup EXIT
+
+          cd "$DEPLOY_PATH"
+          php artisan down --retry=60 --refresh=15 --no-interaction || true
+          maintenance_enabled=1
+
+          rsync -rlt --delete \
+            --exclude='.env' \
+            --exclude='.git/' \
+            --exclude='.github/' \
+            --exclude='bootstrap/cache/' \
+            --exclude='public/storage' \
+            --exclude='storage/' \
+            "$RELEASE_PATH/" "$DEPLOY_PATH/"
+
+          cd "$DEPLOY_PATH"
+          mkdir -p storage/framework/{cache,sessions,views} storage/logs bootstrap/cache
+          chmod -R ug+rwX storage bootstrap/cache
+
+          php artisan optimize:clear --no-interaction
+          php artisan migrate --force --no-interaction
+          php artisan storage:link --no-interaction || true
+          php artisan config:cache --no-interaction
+          php artisan route:cache --no-interaction
+          php artisan view:cache --no-interaction
+          php artisan queue:restart --no-interaction || true
+          php artisan up --no-interaction
+          maintenance_enabled=0
+
+          rm -rf "$RELEASE_PATH"
+          trap - EXIT
+          REMOTE_SCRIPT
+
+      - name: Verify production health
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error \
+            --retry 6 \
+            --retry-all-errors \
+            --retry-delay 5 \
+            --max-time 20 \
+            "$HEALTHCHECK_URL" > /dev/null
