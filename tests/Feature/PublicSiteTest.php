@@ -21,7 +21,13 @@ class PublicSiteTest extends TestCase
 
     public static function publicPages(): array
     {
-        return [['/', 'Cursos para motoristas'], ['/cursos?utm_source=qa&categoria=x', 'Cursos']];
+        return [
+            ['/', 'Cursos para motoristas'],
+            ['/cursos?utm_source=qa&categoria=x', 'Cursos'],
+            ['/quem-somos', 'Quem somos'],
+            ['/politica-de-privacidade', 'Política de Privacidade'],
+            ['/termos-de-uso', 'Termos de Uso'],
+        ];
     }
 
     #[DataProvider('publicPages')]
@@ -104,6 +110,9 @@ class PublicSiteTest extends TestCase
         $response->assertHeader('Content-Type', 'application/xml; charset=UTF-8')
             ->assertSee('<loc>https://especializa.example.com/</loc>', false)
             ->assertSee('<loc>https://especializa.example.com/cursos</loc>', false)
+            ->assertSee('<loc>https://especializa.example.com/quem-somos</loc>', false)
+            ->assertSee('<loc>https://especializa.example.com/politica-de-privacidade</loc>', false)
+            ->assertSee('<loc>https://especializa.example.com/termos-de-uso</loc>', false)
             ->assertSee('<loc>https://especializa.example.com/cursos/publicado</loc>', false)
             ->assertDontSee('rascunho', false);
         $this->assertNotFalse(simplexml_load_string($response->getContent()));

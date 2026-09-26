@@ -32,7 +32,7 @@ class SitemapController extends Controller
             abort_if($page > $pages, 404);
             $xml .= '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">';
             if ($page === 1) {
-                foreach (['/', '/cursos'] as $path) {
+                foreach (['/', '/cursos', '/quem-somos', '/politica-de-privacidade', '/termos-de-uso'] as $path) {
                     $xml .= '<url><loc>'.$escape($origin.$path).'</loc></url>';
                 }
             }

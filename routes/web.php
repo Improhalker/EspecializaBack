@@ -11,6 +11,9 @@ Route::get('/{path}', [PublicSiteController::class, 'asset'])
     ->name('site.asset');
 Route::get('/', [PublicSiteController::class, 'home'])->name('site.home');
 Route::get('/cursos', [PublicSiteController::class, 'courses'])->name('site.courses');
+Route::get('/quem-somos', [PublicSiteController::class, 'about'])->name('site.about');
+Route::get('/politica-de-privacidade', [PublicSiteController::class, 'privacy'])->name('site.privacy');
+Route::get('/termos-de-uso', [PublicSiteController::class, 'terms'])->name('site.terms');
 Route::get('/cursos/{slug}', [PublicSiteController::class, 'course'])->name('site.course');
 Route::get('/admin/{path?}', [PublicSiteController::class, 'admin'])->where('path', '.*')->name('site.admin');
 Route::fallback([PublicSiteController::class, 'missing']);

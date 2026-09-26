@@ -23,6 +23,21 @@ class PublicSiteController extends Controller
         return $this->html('courses', $request);
     }
 
+    public function about(Request $request): Response
+    {
+        return $this->html('about', $request);
+    }
+
+    public function privacy(Request $request): Response
+    {
+        return $this->html('privacy', $request);
+    }
+
+    public function terms(Request $request): Response
+    {
+        return $this->html('terms', $request);
+    }
+
     public function course(Request $request, string $slug): Response
     {
         try {

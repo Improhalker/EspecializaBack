@@ -37,6 +37,9 @@ class PublicSeo
         $title = match ($page) {
             'home' => 'Cursos para motoristas',
             'courses' => 'Cursos',
+            'about' => 'Quem somos',
+            'privacy' => 'Política de Privacidade',
+            'terms' => 'Termos de Uso',
             'course' => trim((string) $course?->meta_title) ?: ($course?->name ?? 'Curso'),
             'not-found' => 'Página não encontrada',
             'error' => 'Não foi possível carregar a página',
@@ -47,6 +50,9 @@ class PublicSeo
         $description = match ($page) {
             'home' => 'Conheça os cursos do Especializa Condutor e fale com nossa equipe para esclarecer dúvidas e consultar condições.',
             'courses' => 'Explore o catálogo de cursos do Especializa Condutor. Consulte informações, modalidades e requisitos de cada curso.',
+            'about' => 'Conheça a Especializa Condutor, nossa forma de atendimento e a jornada que já ajudou mais de 70 motoristas a avançarem em sua especialização.',
+            'privacy' => 'Saiba quais dados a Especializa Condutor usa na navegação e no atendimento, e como falar conosco sobre sua privacidade.',
+            'terms' => 'Entenda como funciona a vitrine de cursos da Especializa Condutor e o atendimento para matrícula pelo WhatsApp.',
             'course' => trim((string) $course?->meta_description) ?: (trim((string) $course?->summary) ?: 'Conheça o curso '.$course?->name.' e consulte informações com a equipe do Especializa Condutor.'),
             'not-found' => 'Esta página não foi encontrada ou não está mais disponível. Acesse o início ou explore nossos cursos.',
             'error' => 'Não foi possível carregar as informações agora. Tente novamente em instantes.',
@@ -55,6 +61,9 @@ class PublicSeo
         $path = match ($page) {
             'home' => '/',
             'courses' => '/cursos',
+            'about' => '/quem-somos',
+            'privacy' => '/politica-de-privacidade',
+            'terms' => '/termos-de-uso',
             'course' => '/cursos/'.rawurlencode((string) $course?->slug),
             default => null,
         };
