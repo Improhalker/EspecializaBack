@@ -10,8 +10,9 @@ use App\Models\Course;
 use App\Models\PageAppearance;
 use App\Models\Setting;
 use App\Models\Testimonial;
+use App\Services\PublicCourseCache;
 use Illuminate\Database\Eloquent\Collection;
-use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Log;
 use Throwable;
 
@@ -26,32 +27,56 @@ class HomeController extends Controller
         ['question' => 'Formação e Atualização são a mesma coisa?', 'answer' => 'São modalidades do mesmo curso, indicadas para momentos diferentes. Confira os requisitos ou peça ajuda para escolher.'],
     ];
 
-    public function __invoke(): JsonResponse
+    public function __invoke(PublicCourseCache $cache): Response
     {
-        $featuredCourses = Course::query()
-            ->published()
-            ->where('is_featured', true)
-            ->with(['category', 'coverMedia'])
-            ->orderBy('sort_order')
-            ->orderBy('id')
-            ->take(6)
-            ->get();
+        $started = hrtime(true);
+        $databaseMs = 0.0;
+        $serializationMs = 0.0;
+        $key = $cache->key('__home__');
+        $json = $cache->get($key);
+        $hit = $json !== null;
 
-        $appearance = PageAppearance::query()->with(['heroMedia', 'heroMobileMedia'])->where('page_key', 'home')->first()
-            ?? new PageAppearance(['page_key' => 'home']);
+        if (! $hit) {
+            $databaseStarted = hrtime(true);
+            $featuredCourses = Course::query()
+                ->published()
+                ->where('is_featured', true)
+                ->with(['category', 'coverMedia'])
+                ->orderBy('sort_order')
+                ->orderBy('id')
+                ->take(6)
+                ->get();
 
-        $globalFaqs = Setting::query()->where('key', 'global_faq')->value('value');
-        $faqs = ! empty($globalFaqs) ? $globalFaqs : self::DEFAULT_FAQS;
+            $appearance = PageAppearance::query()->with(['heroMedia', 'heroMobileMedia'])->where('page_key', 'home')->first()
+                ?? new PageAppearance(['page_key' => 'home']);
 
-        return response()->json([
-            'hero' => (new HeroResource($appearance))->resolve(),
-            'featured_courses' => CourseResource::collection($featuredCourses)->resolve(),
-            'testimonials' => TestimonialResource::collection($this->publishedTestimonials())->resolve(),
-            'faqs' => collect($faqs)->values()->map(fn (array $faq, int $index) => [
-                'id' => $index,
-                'question' => $faq['question'],
-                'answer' => $faq['answer'],
-            ]),
+            $globalFaqs = Setting::query()->where('key', 'global_faq')->value('value');
+            $faqs = ! empty($globalFaqs) ? $globalFaqs : self::DEFAULT_FAQS;
+            $databaseMs = (hrtime(true) - $databaseStarted) / 1_000_000;
+
+            $serializationStarted = hrtime(true);
+            $json = response()->json([
+                'hero' => (new HeroResource($appearance))->resolve(),
+                'featured_courses' => CourseResource::collection($featuredCourses)->resolve(),
+                'testimonials' => TestimonialResource::collection($this->publishedTestimonials())->resolve(),
+                'faqs' => collect($faqs)->values()->map(fn (array $faq, int $index) => [
+                    'id' => $index,
+                    'question' => $faq['question'],
+                    'answer' => $faq['answer'],
+                ]),
+            ])->getContent();
+            $serializationMs = (hrtime(true) - $serializationStarted) / 1_000_000;
+            $cache->put($key, $json);
+        }
+
+        $totalMs = (hrtime(true) - $started) / 1_000_000;
+
+        return response($json, 200, [
+            'Content-Type' => 'application/json; charset=UTF-8',
+            'Cache-Control' => 'public, max-age='.config('site.public_response_cache_seconds'),
+            'Timing-Allow-Origin' => '*',
+            'Server-Timing' => sprintf('home-cache;desc="%s", db;dur=%.1f, serialize;dur=%.1f, app;dur=%.1f',
+                $hit ? 'hit' : 'miss', $databaseMs, $serializationMs, $totalMs),
         ]);
     }
 

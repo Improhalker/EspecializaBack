@@ -9,7 +9,6 @@ use App\Models\Course;
 use App\Models\PageAppearance;
 use App\Models\SharedFaq;
 use App\Services\PublicCourseCache;
-use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Http\Response;
 
 class CourseController extends Controller
@@ -17,21 +16,45 @@ class CourseController extends Controller
     /**
      * Display a listing of the resource.
      */
-    public function index(): AnonymousResourceCollection
+    public function index(PublicCourseCache $cache): Response
     {
-        $courses = Course::query()
-            ->published()
-            ->with(['category', 'coverMedia'])
-            ->orderBy('sort_order')
-            ->orderBy('id')
-            ->get();
+        $started = hrtime(true);
+        $databaseMs = 0.0;
+        $serializationMs = 0.0;
+        $key = $cache->key('__courses-index__');
+        $json = $cache->get($key);
+        $hit = $json !== null;
 
-        $appearance = PageAppearance::query()->with(['heroMedia', 'heroMobileMedia'])->where('page_key', 'courses-index')->first()
-            ?? new PageAppearance(['page_key' => 'courses-index']);
+        if (! $hit) {
+            $databaseStarted = hrtime(true);
+            $courses = Course::query()
+                ->published()
+                ->with(['category', 'coverMedia'])
+                ->orderBy('sort_order')
+                ->orderBy('id')
+                ->get();
 
-        return CourseResource::collection($courses)->additional(['meta' => [
-            'hero' => (new HeroResource($appearance))->resolve(),
-        ]]);
+            $appearance = PageAppearance::query()->with(['heroMedia', 'heroMobileMedia'])->where('page_key', 'courses-index')->first()
+                ?? new PageAppearance(['page_key' => 'courses-index']);
+            $databaseMs = (hrtime(true) - $databaseStarted) / 1_000_000;
+
+            $serializationStarted = hrtime(true);
+            $json = CourseResource::collection($courses)->additional(['meta' => [
+                'hero' => (new HeroResource($appearance))->resolve(),
+            ]])->response()->getContent();
+            $serializationMs = (hrtime(true) - $serializationStarted) / 1_000_000;
+            $cache->put($key, $json);
+        }
+
+        $totalMs = (hrtime(true) - $started) / 1_000_000;
+
+        return response($json, 200, [
+            'Content-Type' => 'application/json; charset=UTF-8',
+            'Cache-Control' => 'public, max-age='.config('site.public_response_cache_seconds'),
+            'Timing-Allow-Origin' => '*',
+            'Server-Timing' => sprintf('courses-cache;desc="%s", db;dur=%.1f, serialize;dur=%.1f, app;dur=%.1f',
+                $hit ? 'hit' : 'miss', $databaseMs, $serializationMs, $totalMs),
+        ]);
     }
 
     /**
@@ -79,7 +102,7 @@ class CourseController extends Controller
 
         return response($json, 200, [
             'Content-Type' => 'application/json; charset=UTF-8',
-            'Cache-Control' => 'no-store',
+            'Cache-Control' => 'public, max-age='.config('site.public_response_cache_seconds'),
             'Timing-Allow-Origin' => '*',
             'Server-Timing' => sprintf('course-cache;desc="%s", db;dur=%.1f, serialize;dur=%.1f, app;dur=%.1f',
                 $hit ? 'hit' : 'miss', $databaseMs, $serializationMs, $totalMs),

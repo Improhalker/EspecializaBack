@@ -10,12 +10,15 @@ use App\Http\Requests\UpdateTestimonialRequest;
 use App\Http\Resources\AdminTestimonialResource;
 use App\Models\Media;
 use App\Models\Testimonial;
+use App\Services\PublicCourseCache;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Validation\ValidationException;
 
 class TestimonialController extends Controller
 {
+    public function __construct(private PublicCourseCache $publicCache) {}
+
     public function index(ListTestimonialsRequest $request): AnonymousResourceCollection
     {
         $validated = $request->validated();
@@ -44,6 +47,7 @@ class TestimonialController extends Controller
             'sort_order' => 0,
             ...$this->testimonialAttributes($request->validated()),
         ]);
+        $this->publicCache->invalidate();
 
         return new AdminTestimonialResource($testimonial->load('avatarMedia'));
     }
@@ -56,6 +60,7 @@ class TestimonialController extends Controller
     public function update(UpdateTestimonialRequest $request, Testimonial $testimonial): AdminTestimonialResource
     {
         $testimonial->update($this->testimonialAttributes($request->validated()));
+        $this->publicCache->invalidate();
 
         return new AdminTestimonialResource($testimonial->fresh()->load('avatarMedia'));
     }
@@ -63,6 +68,7 @@ class TestimonialController extends Controller
     public function updatePublication(UpdateTestimonialPublicationRequest $request, Testimonial $testimonial): AdminTestimonialResource
     {
         $testimonial->update($request->validated());
+        $this->publicCache->invalidate();
 
         return new AdminTestimonialResource($testimonial->load('avatarMedia'));
     }
@@ -70,6 +76,7 @@ class TestimonialController extends Controller
     public function destroy(Testimonial $testimonial): JsonResponse
     {
         $testimonial->delete();
+        $this->publicCache->invalidate();
 
         return response()->json([], 204);
     }

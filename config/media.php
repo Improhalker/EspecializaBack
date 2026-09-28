@@ -9,6 +9,9 @@ return [
     'max_pixels' => (int) env('MEDIA_MAX_PIXELS', 24000000),
     'webp_quality' => (int) env('MEDIA_WEBP_QUALITY', 82),
     'max_svg_kb' => (int) env('MEDIA_MAX_SVG_KB', 512),
-    'delivery_cache_seconds' => (int) env('MEDIA_CACHE_SECONDS', 300),
+    // Browser-facing Cache-Control max-age for /api/media/{uuid}. Media bytes are immutable
+    // once ready (a re-upload always gets a new UUID), so this matches the 7-day server-side
+    // TTL below rather than the old 5-minute default that forced needless re-downloads.
+    'delivery_cache_seconds' => (int) env('MEDIA_CACHE_SECONDS', 604800),
     'server_cache_seconds' => (int) env('PUBLIC_MEDIA_CACHE_SECONDS', 604800),
 ];

@@ -3,6 +3,7 @@
 namespace Tests\Feature\Api;
 
 use App\Models\Testimonial;
+use App\Services\PublicCourseCache;
 use Illuminate\Foundation\Testing\LazilyRefreshDatabase;
 use Tests\TestCase;
 
@@ -35,6 +36,9 @@ class TestimonialTest extends TestCase
 
         $testimonial = Testimonial::factory()->create(['name' => 'Cliente satisfeito', 'is_published' => true]);
         Testimonial::factory()->create(['is_published' => false]);
+        // /api/home is cached; a real admin action invalidates it (see Admin\TestimonialController).
+        // Creating rows directly, bypassing that controller, must do the same to see the update.
+        app(PublicCourseCache::class)->invalidate();
 
         $this->getJson('/api/home')->assertOk()
             ->assertJsonCount(1, 'testimonials')

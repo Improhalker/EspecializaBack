@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\UpdateSiteSettingsRequest;
 use App\Models\Course;
 use App\Models\Setting;
+use App\Services\PublicCourseCache;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
 
@@ -15,6 +16,8 @@ class SettingController extends Controller
      * @var array<int, string>
      */
     private const KEYS = ['contact', 'social_links', 'institutional', 'global_faq'];
+
+    public function __construct(private PublicCourseCache $publicCache) {}
 
     public function index(): JsonResponse
     {
@@ -56,6 +59,7 @@ class SettingController extends Controller
                 }
             }
         });
+        $this->publicCache->invalidate();
 
         return $this->index();
     }

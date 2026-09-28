@@ -12,7 +12,7 @@ class WarmPublicCourseCache extends Command
 {
     protected $signature = 'courses:warm-cache';
 
-    protected $description = 'Aquece o cache local das páginas de cursos publicados.';
+    protected $description = 'Aquece o cache local da home, da listagem e das páginas de cursos publicados.';
 
     public function handle(Kernel $kernel, PublicCourseCache $cache): int
     {
@@ -20,22 +20,36 @@ class WarmPublicCourseCache extends Command
         $warmed = 0;
         $failed = 0;
 
-        foreach (Course::query()->published()->select('slug')->cursor() as $course) {
-            $url = rtrim(config('app.url'), '/').'/api/courses/'.rawurlencode($course->slug);
-            $request = Request::create($url, 'GET', server: ['HTTP_ACCEPT' => 'application/json']);
-            $response = $kernel->handle($request);
-            $kernel->terminate($request, $response);
-
-            if ($response->getStatusCode() === 200) {
+        foreach (['/api/home', '/api/courses'] as $path) {
+            if ($this->warm($kernel, $path)) {
                 $warmed++;
             } else {
                 $failed++;
-                $this->components->warn("Falha ao aquecer o curso {$course->slug}: HTTP {$response->getStatusCode()}.");
+                $this->components->warn("Falha ao aquecer {$path}.");
             }
         }
 
-        $this->components->info("Cache aquecido para {$warmed} curso(s). Falhas: {$failed}.");
+        foreach (Course::query()->published()->select('slug')->cursor() as $course) {
+            if ($this->warm($kernel, '/api/courses/'.rawurlencode($course->slug))) {
+                $warmed++;
+            } else {
+                $failed++;
+                $this->components->warn("Falha ao aquecer o curso {$course->slug}.");
+            }
+        }
+
+        $this->components->info("Cache aquecido para {$warmed} página(s). Falhas: {$failed}.");
 
         return $failed === 0 ? self::SUCCESS : self::FAILURE;
+    }
+
+    private function warm(Kernel $kernel, string $path): bool
+    {
+        $url = rtrim(config('app.url'), '/').$path;
+        $request = Request::create($url, 'GET', server: ['HTTP_ACCEPT' => 'application/json']);
+        $response = $kernel->handle($request);
+        $kernel->terminate($request, $response);
+
+        return $response->getStatusCode() === 200;
     }
 }

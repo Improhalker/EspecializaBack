@@ -306,9 +306,11 @@ class AdminMediaTest extends TestCase
         $media = Media::factory()->create();
         Http::fake(['storage.example.test/storage/v1/object/authenticated/media/*' => Http::response('image-bytes', 200)]);
 
-        $this->get('/api/media/'.$media->uuid)->assertOk()->assertContent('image-bytes')
+        $response = $this->get('/api/media/'.$media->uuid)->assertOk()->assertContent('image-bytes')
             ->assertHeader('Content-Type', 'image/webp')->assertHeader('X-Content-Type-Options', 'nosniff')
             ->assertHeaderMissing('Location');
+        $this->assertStringContainsString('public', $response->headers->get('Cache-Control'));
+        $this->assertStringContainsString('max-age='.config('media.delivery_cache_seconds'), $response->headers->get('Cache-Control'));
 
         Http::assertSentCount(1);
     }

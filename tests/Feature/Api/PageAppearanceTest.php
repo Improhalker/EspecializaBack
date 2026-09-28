@@ -104,6 +104,21 @@ class PageAppearanceTest extends TestCase
             ->assertJsonPath('hero.media', null);
     }
 
+    public function test_saving_a_page_hero_invalidates_the_already_cached_home_response(): void
+    {
+        $media = Media::factory()->create();
+        $this->getJson('/api/home')->assertOk()->assertJsonPath('hero.enabled', false);
+
+        $this->administrator();
+        $this->patchJson('/api/admin/page-appearances/home', [
+            'hero_enabled' => true, 'hero_media_id' => $media->id,
+        ])->assertOk();
+
+        $this->getJson('/api/home')->assertOk()
+            ->assertJsonPath('hero.enabled', true)
+            ->assertJsonPath('hero.media.url', $media->deliveryUrl());
+    }
+
     public function test_media_used_by_page_hero_cannot_be_deleted(): void
     {
         $media = Media::factory()->create();

@@ -86,6 +86,19 @@ class AdminTestimonialTest extends TestCase
         $this->assertDatabaseHas('testimonials', ['id' => $testimonial->id, 'is_published' => true]);
     }
 
+    public function test_publishing_a_testimonial_invalidates_the_already_cached_home_response(): void
+    {
+        $this->getJson('/api/home')->assertOk()->assertJsonCount(0, 'testimonials');
+
+        $this->actingAsAdministrator();
+        $testimonial = Testimonial::factory()->create(['is_published' => false, 'name' => 'Fernanda Lima']);
+        $this->patchJson("/api/admin/testimonials/{$testimonial->id}/publication", ['is_published' => true])->assertOk();
+
+        $this->getJson('/api/home')->assertOk()
+            ->assertJsonCount(1, 'testimonials')
+            ->assertJsonPath('testimonials.0.name', 'Fernanda Lima');
+    }
+
     public function test_administrator_can_delete_a_testimonial(): void
     {
         $this->actingAsAdministrator();

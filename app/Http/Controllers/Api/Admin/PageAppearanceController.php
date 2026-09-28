@@ -7,6 +7,7 @@ use App\Http\Requests\Admin\UpdatePageAppearanceRequest;
 use App\Http\Resources\PageAppearanceResource;
 use App\Models\Media;
 use App\Models\PageAppearance;
+use App\Services\PublicCourseCache;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Support\Facades\DB;
@@ -14,6 +15,8 @@ use Illuminate\Validation\ValidationException;
 
 class PageAppearanceController extends Controller
 {
+    public function __construct(private PublicCourseCache $publicCache) {}
+
     public function index(): AnonymousResourceCollection
     {
         $definitions = collect(config('page_appearances.pages', []))
@@ -57,6 +60,7 @@ class PageAppearanceController extends Controller
 
             return $appearance;
         });
+        $this->publicCache->invalidate();
 
         return (new PageAppearanceResource($appearance->load(['heroMedia', 'heroMobileMedia'])))
             ->response()->setStatusCode(200);
