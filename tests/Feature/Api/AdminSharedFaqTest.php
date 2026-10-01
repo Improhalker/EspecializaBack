@@ -28,7 +28,7 @@ class AdminSharedFaqTest extends TestCase
     {
         $this->actingAsAdministrator();
 
-        $this->postJson('/api/admin/faqs', $this->payload(['application_mode' => 'all_courses']))
+        $this->postJson('/api/admin/faqs', $this->payload(['application_mode' => 'all_courses', 'course_ids' => []]))
             ->assertCreated()
             ->assertJsonPath('data.application_mode', 'all_courses')
             ->assertJsonCount(0, 'data.course_ids');
@@ -58,7 +58,10 @@ class AdminSharedFaqTest extends TestCase
         $this->actingAsAdministrator();
 
         $this->postJson('/api/admin/faqs', $this->payload(['application_mode' => 'selected_courses', 'course_ids' => []]))
-            ->assertUnprocessable()->assertJsonValidationErrors('course_ids');
+            ->assertUnprocessable()->assertJsonValidationErrors(['course_ids' => 'Selecione pelo menos um curso para esta FAQ.']);
+
+        $this->postJson('/api/admin/faqs', $this->payload(['application_mode' => 'selected_courses']))
+            ->assertUnprocessable()->assertJsonValidationErrors(['course_ids' => 'Selecione pelo menos um curso para esta FAQ.']);
 
         $this->postJson('/api/admin/faqs', $this->payload(['application_mode' => 'selected_courses', 'course_ids' => [999999]]))
             ->assertUnprocessable()->assertJsonValidationErrors('course_ids.0');
@@ -90,6 +93,21 @@ class AdminSharedFaqTest extends TestCase
         $this->assertDatabaseMissing('course_shared_faq', ['course_id' => $courseA->id, 'shared_faq_id' => $faq->id]);
     }
 
+    public function test_updating_to_selected_courses_without_a_course_keeps_the_previous_association(): void
+    {
+        $course = Course::factory()->create();
+        $faq = SharedFaq::factory()->create(['application_mode' => SharedFaq::APPLICATION_SELECTED_COURSES]);
+        $faq->courses()->sync([$course->id]);
+        $this->actingAsAdministrator();
+
+        $this->patchJson("/api/admin/faqs/{$faq->id}", $this->payload([
+            'application_mode' => 'selected_courses',
+            'course_ids' => [],
+        ]))->assertUnprocessable()->assertJsonValidationErrors(['course_ids' => 'Selecione pelo menos um curso para esta FAQ.']);
+
+        $this->assertDatabaseHas('course_shared_faq', ['course_id' => $course->id, 'shared_faq_id' => $faq->id]);
+    }
+
     public function test_switching_to_all_courses_clears_existing_associations(): void
     {
         $course = Course::factory()->create();
@@ -97,7 +115,7 @@ class AdminSharedFaqTest extends TestCase
         $faq->courses()->sync([$course->id]);
         $this->actingAsAdministrator();
 
-        $this->patchJson("/api/admin/faqs/{$faq->id}", $this->payload(['application_mode' => 'all_courses']))
+        $this->patchJson("/api/admin/faqs/{$faq->id}", $this->payload(['application_mode' => 'all_courses', 'course_ids' => []]))
             ->assertOk()->assertJsonCount(0, 'data.course_ids');
 
         $this->assertDatabaseCount('course_shared_faq', 0);

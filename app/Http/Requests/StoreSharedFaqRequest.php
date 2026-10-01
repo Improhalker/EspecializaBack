@@ -27,10 +27,18 @@ class StoreSharedFaqRequest extends FormRequest
             'question' => ['required', 'string', 'max:255'],
             'answer' => ['required', 'string'],
             'application_mode' => ['required', Rule::in([SharedFaq::APPLICATION_ALL_COURSES, SharedFaq::APPLICATION_SELECTED_COURSES])],
-            'course_ids' => ['required_if:application_mode,'.SharedFaq::APPLICATION_SELECTED_COURSES, 'array', 'min:1'],
+            'course_ids' => ['required_if:application_mode,'.SharedFaq::APPLICATION_SELECTED_COURSES, 'array'],
             'course_ids.*' => ['integer', 'distinct', 'exists:courses,id'],
             'is_published' => ['sometimes', 'boolean'],
             'sort_order' => ['nullable', 'integer', 'min:0', 'max:65535'],
         ];
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    public function messages(): array
+    {
+        return ['course_ids.required_if' => 'Selecione pelo menos um curso para esta FAQ.'];
     }
 }
