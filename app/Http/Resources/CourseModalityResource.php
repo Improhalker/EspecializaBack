@@ -20,6 +20,7 @@ class CourseModalityResource extends JsonResource
             'workload' => $this->workload,
             'description' => $this->description,
             'features' => $this->features ?? [],
+            'characteristics' => (object) ($this->characteristics ?? []),
             'bonuses' => $this->bonuses ?? [],
             'price_mode' => $this->price_mode,
             'price' => $this->when($this->price_mode === 'visible', $this->price),

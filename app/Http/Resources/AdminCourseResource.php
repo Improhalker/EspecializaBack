@@ -52,6 +52,7 @@ class AdminCourseResource extends JsonResource
                 'workload' => $modality->workload,
                 'description' => $modality->description,
                 'features' => $modality->features ?? [],
+                'characteristics' => (object) ($modality->characteristics ?? []),
                 'bonuses' => $modality->bonuses ?? [],
                 'price_mode' => $modality->price_mode,
                 'price' => $modality->price,

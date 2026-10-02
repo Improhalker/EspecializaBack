@@ -49,6 +49,15 @@ class StoreCourseRequest extends FormRequest
             'modalities.*.id' => ['nullable', 'integer'],
             'modalities.*.name' => ['required', 'string', Rule::in(['Formação', 'Atualização'])],
             'modalities.*.workload' => ['nullable', 'string', 'max:80'],
+            'modalities.*.characteristics' => ['nullable', 'array:format,materials,assessment,certificate,support,access,video_lessons_count,video_lessons_duration'],
+            'modalities.*.characteristics.format' => ['nullable', 'string', 'max:300'],
+            'modalities.*.characteristics.materials' => ['nullable', 'string', 'max:300'],
+            'modalities.*.characteristics.assessment' => ['nullable', 'string', 'max:300'],
+            'modalities.*.characteristics.certificate' => ['nullable', 'string', 'max:300'],
+            'modalities.*.characteristics.support' => ['nullable', 'string', 'max:300'],
+            'modalities.*.characteristics.access' => ['nullable', 'string', 'max:300'],
+            'modalities.*.characteristics.video_lessons_count' => ['nullable', 'integer', 'min:1', 'max:100000'],
+            'modalities.*.characteristics.video_lessons_duration' => ['nullable', 'string', 'max:150'],
             'modalities.*.description' => ['nullable', 'string'],
             'modalities.*.features' => ['nullable', 'array'],
             'modalities.*.features.*' => ['required', 'string', 'max:500'],
@@ -65,6 +74,18 @@ class StoreCourseRequest extends FormRequest
             'faqs.*.question' => ['required', 'string', 'max:255'],
             'faqs.*.answer' => ['required', 'string'],
             'faqs.*.sort_order' => ['nullable', 'integer', 'min:0', 'max:65535'],
+        ];
+    }
+
+    public function messages(): array
+    {
+        return [
+            'modalities.*.characteristics.array' => 'As características devem conter apenas os campos disponíveis no formulário.',
+            'modalities.*.characteristics.*.string' => 'Preencha esta característica com um texto.',
+            'modalities.*.characteristics.*.max' => 'O texto desta característica ultrapassa o limite permitido.',
+            'modalities.*.characteristics.video_lessons_count.integer' => 'A quantidade de videoaulas deve ser um número inteiro.',
+            'modalities.*.characteristics.video_lessons_count.min' => 'Informe ao menos uma videoaula ou deixe o campo vazio.',
+            'modalities.*.characteristics.video_lessons_count.max' => 'A quantidade de videoaulas ultrapassa o limite permitido.',
         ];
     }
 }

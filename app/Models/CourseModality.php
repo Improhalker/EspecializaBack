@@ -13,11 +13,11 @@ class CourseModality extends Model
     /** @use HasFactory<CourseModalityFactory> */
     use HasFactory;
 
-    protected $fillable = ['course_id', 'name', 'workload', 'description', 'features', 'bonuses', 'price_mode', 'price', 'price_label', 'whatsapp_message', 'sort_order', 'is_published'];
+    protected $fillable = ['course_id', 'name', 'workload', 'description', 'features', 'characteristics', 'bonuses', 'price_mode', 'price', 'price_label', 'whatsapp_message', 'sort_order', 'is_published'];
 
     protected function casts(): array
     {
-        return ['features' => 'array', 'bonuses' => 'array', 'price' => 'decimal:2', 'is_published' => 'boolean'];
+        return ['features' => 'array', 'characteristics' => 'array', 'bonuses' => 'array', 'price' => 'decimal:2', 'is_published' => 'boolean'];
     }
 
     public function course(): BelongsTo
