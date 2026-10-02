@@ -29,6 +29,7 @@ class ListAttendanceRequest extends FormRequest
             'utm_source' => ['nullable', 'string', 'max:255'],
             'origin' => ['nullable', 'string', 'max:255'],
             'per_page' => ['nullable', 'integer', 'min:1', 'max:50'],
+            'page' => ['nullable', 'integer', 'min:1'],
         ];
     }
 }
