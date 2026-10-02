@@ -11,6 +11,12 @@ class WhatsappClickTest extends TestCase
 {
     use LazilyRefreshDatabase;
 
+    protected function setUp(): void
+    {
+        parent::setUp();
+        config(['analytics.excluded_ips' => []]);
+    }
+
     public function test_valid_payload_creates_click_and_returns_201(): void
     {
         $course = Course::factory()->create();

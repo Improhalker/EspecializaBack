@@ -3,9 +3,11 @@
 use App\Http\Middleware\EnsureAdministrator;
 use App\Http\Middleware\EnsurePasswordWasChanged;
 use App\Http\Middleware\PreventApiIndexing;
+use App\Http\Middleware\TrustAnalyticsProxies;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
+use Illuminate\Http\Middleware\TrustProxies;
 use Illuminate\Http\Request;
 
 return Application::configure(basePath: dirname(__DIR__))
@@ -16,6 +18,7 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
+        $middleware->replace(TrustProxies::class, TrustAnalyticsProxies::class);
         $middleware->append(PreventApiIndexing::class);
         $middleware->alias([
             'admin' => EnsureAdministrator::class,
