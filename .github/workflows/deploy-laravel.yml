@@ -35,6 +35,9 @@ jobs:
           coverage: none
           tools: composer:v2
 
+      - name: Audit locked dependencies
+        run: composer audit --locked --no-interaction
+
       - name: Install test dependencies
         run: composer install --prefer-dist --no-progress --no-interaction
 
