@@ -7,6 +7,7 @@ use App\Services\PublicCourseCache;
 use Database\Factories\MediaFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Str;
 
@@ -82,6 +83,16 @@ class Media extends Model
     public function testimonialAvatars(): HasMany
     {
         return $this->hasMany(Testimonial::class, 'avatar_media_id');
+    }
+
+    public function blogCovers(): HasMany
+    {
+        return $this->hasMany(BlogPost::class, 'cover_media_id');
+    }
+
+    public function blogBodyPosts(): BelongsToMany
+    {
+        return $this->belongsToMany(BlogPost::class, 'blog_post_media');
     }
 
     public function deliveryUrl(): ?string

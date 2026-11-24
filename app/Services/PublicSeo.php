@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\BlogPost;
 use App\Models\Course;
 use Illuminate\Http\Request;
 
@@ -32,7 +33,7 @@ class PublicSeo
     }
 
     /** @return array<string, mixed> */
-    public function page(string $page, Request $request, ?Course $course = null): array
+    public function page(string $page, Request $request, ?Course $course = null, ?BlogPost $post = null): array
     {
         $title = match ($page) {
             'home' => 'Cursos para motoristas',
@@ -41,6 +42,8 @@ class PublicSeo
             'privacy' => 'Política de Privacidade',
             'terms' => 'Termos de Uso',
             'course' => trim((string) $course?->meta_title) ?: ($course?->name ?? 'Curso'),
+            'blog' => 'Blog',
+            'blog-post' => trim((string) $post?->meta_title) ?: ($post?->title ?? 'Artigo'),
             'not-found' => 'Página não encontrada',
             'error' => 'Não foi possível carregar a página',
             default => 'Administração',
@@ -54,6 +57,8 @@ class PublicSeo
             'privacy' => 'Saiba quais dados a Especializa Condutor usa na navegação e no atendimento, e como falar conosco sobre sua privacidade.',
             'terms' => 'Entenda como funciona a vitrine de cursos da Especializa Condutor e o atendimento para matrícula pelo WhatsApp.',
             'course' => trim((string) $course?->meta_description) ?: (trim((string) $course?->summary) ?: 'Conheça o curso '.$course?->name.' e consulte informações com a equipe do Especializa Condutor.'),
+            'blog' => 'Artigos e orientações para motoristas sobre cursos especializados, formação, atualização e rotina profissional.',
+            'blog-post' => trim((string) $post?->meta_description) ?: (trim((string) $post?->excerpt) ?: 'Leia o artigo no blog do Especializa Condutor.'),
             'not-found' => 'Esta página não foi encontrada ou não está mais disponível. Acesse o início ou explore nossos cursos.',
             'error' => 'Não foi possível carregar as informações agora. Tente novamente em instantes.',
             default => 'Administração do Especializa Condutor.',
@@ -65,10 +70,12 @@ class PublicSeo
             'privacy' => '/politica-de-privacidade',
             'terms' => '/termos-de-uso',
             'course' => '/cursos/'.rawurlencode((string) $course?->slug),
+            'blog' => '/blog',
+            'blog-post' => '/blog/'.rawurlencode((string) $post?->slug),
             default => null,
         };
         $origin = $this->origin();
-        $cover = $course?->resolvedCover();
+        $cover = $post ? $post->resolvedCover() : $course?->resolvedCover();
         $image = $cover['url'] ?? ($origin ? $origin.'/brand/especializa-condutor.png' : null);
         if ($image && str_starts_with($image, '/') && ! str_starts_with($image, '//')) {
             $image = $origin ? $origin.$image : null;
@@ -86,6 +93,9 @@ class PublicSeo
             'robots' => $path && $this->indexable($request) ? 'index, follow' : 'noindex, nofollow',
             'origin' => $origin,
             'indexable' => $this->indexable($request),
+            'type' => $page === 'blog-post' ? 'article' : 'website',
+            'published_time' => $page === 'blog-post' ? $post?->published_at?->toAtomString() : null,
+            'modified_time' => $page === 'blog-post' ? $post?->updated_at?->toAtomString() : null,
         ];
     }
 }

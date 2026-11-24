@@ -85,6 +85,6 @@ class MediaController extends Controller
     /** @return array<int, string> */
     private function usageRelations(): array
     {
-        return ['courses', 'heroCourses', 'mobileHeroCourses', 'pageHeroes', 'mobilePageHeroes', 'testimonialAvatars'];
+        return ['courses', 'heroCourses', 'mobileHeroCourses', 'pageHeroes', 'mobilePageHeroes', 'testimonialAvatars', 'blogCovers', 'blogBodyPosts'];
     }
 }

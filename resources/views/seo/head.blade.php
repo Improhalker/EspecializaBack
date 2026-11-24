@@ -5,7 +5,13 @@
 <meta name="site-indexable" content="{{ $seo['indexable'] ? 'true' : 'false' }}">
 <meta property="og:title" content="{{ $seo['title'] }}">
 <meta property="og:description" content="{{ $seo['description'] }}">
-<meta property="og:type" content="website">
+<meta property="og:type" content="{{ $seo['type'] ?? 'website' }}">
+@if (! empty($seo['published_time']))
+<meta property="article:published_time" content="{{ $seo['published_time'] }}">
+@endif
+@if (! empty($seo['modified_time']))
+<meta property="article:modified_time" content="{{ $seo['modified_time'] }}">
+@endif
 <meta property="og:locale" content="pt_BR">
 <meta property="og:site_name" content="Especializa Condutor">
 <meta name="twitter:title" content="{{ $seo['title'] }}">

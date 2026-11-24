@@ -18,7 +18,7 @@ class StoreAnalyticsRequest extends FormRequest
             'session_id' => ['required', 'uuid'],
             'page' => ['required', 'array:id,path,active_ms,scroll_depth,lcp_ms,inp_ms,cls,referrer_host,utm_source,utm_medium,utm_campaign'],
             'page.id' => ['required', 'uuid'],
-            'page.path' => ['required', 'string', 'max:512', 'regex:~^/(?:cursos(?:/[a-z0-9-]+)?|quem-somos|politica-de-privacidade|termos-de-uso)?$~'],
+            'page.path' => ['required', 'string', 'max:512', 'regex:~^/(?:cursos(?:/[a-z0-9-]+)?|blog(?:/[a-z0-9-]+)?|quem-somos|politica-de-privacidade|termos-de-uso)?$~'],
             'page.active_ms' => ['required', 'integer', 'min:0', 'max:14400000'],
             'page.scroll_depth' => ['required', 'integer', 'min:0', 'max:100'],
             'page.lcp_ms' => ['nullable', 'integer', 'min:0', 'max:120000'],

@@ -15,5 +15,7 @@ Route::get('/quem-somos', [PublicSiteController::class, 'about'])->name('site.ab
 Route::get('/politica-de-privacidade', [PublicSiteController::class, 'privacy'])->name('site.privacy');
 Route::get('/termos-de-uso', [PublicSiteController::class, 'terms'])->name('site.terms');
 Route::get('/cursos/{slug}', [PublicSiteController::class, 'course'])->name('site.course');
+Route::get('/blog', [PublicSiteController::class, 'blog'])->name('site.blog');
+Route::get('/blog/{slug}', [PublicSiteController::class, 'blogPost'])->name('site.blog-post');
 Route::get('/admin/{path?}', [PublicSiteController::class, 'admin'])->where('path', '.*')->name('site.admin');
 Route::fallback([PublicSiteController::class, 'missing']);

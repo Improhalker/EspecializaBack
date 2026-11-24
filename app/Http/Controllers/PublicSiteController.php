@@ -2,16 +2,19 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\BlogPost;
 use App\Models\Course;
+use App\Services\PublicBlog;
 use App\Services\PublicSeo;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
+use Illuminate\Support\Carbon;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 class PublicSiteController extends Controller
 {
-    public function __construct(private PublicSeo $seo) {}
+    public function __construct(private PublicSeo $seo, private PublicBlog $blog) {}
 
     public function home(Request $request): Response
     {
@@ -51,6 +54,48 @@ class PublicSiteController extends Controller
         return $course ? $this->html('course', $request, $course) : $this->html('not-found', $request, status: 404);
     }
 
+    public function blog(Request $request): Response
+    {
+        try {
+            $posts = BlogPost::query()->published()->inListingOrder()->limit(9)->get(['id', 'title', 'slug', 'excerpt', 'published_at']);
+        } catch (QueryException $exception) {
+            report($exception);
+
+            return $this->html('error', $request, status: 503);
+        }
+
+        $items = $posts->map(fn (BlogPost $post): string => '<li><h2><a href="/blog/'.e(rawurlencode($post->slug)).'">'.e($post->title).'</a></h2>'
+            .'<p>'.e($post->excerpt).'</p>'.$this->time($post->published_at).'</li>')->implode('');
+        $content = '<main class="ssr-content container"><h1>Blog</h1>'
+            .($items !== '' ? '<ul class="ssr-list">'.$items.'</ul>' : '<p>Em breve, novos artigos para motoristas.</p>')
+            .'<p><a href="/cursos">Ver todos os cursos</a></p></main>';
+
+        return $this->html('blog', $request, content: $content);
+    }
+
+    public function blogPost(Request $request, string $slug): Response
+    {
+        try {
+            $post = $this->blog->findPublished($slug);
+        } catch (QueryException $exception) {
+            report($exception);
+
+            return $this->html('error', $request, status: 503);
+        }
+        if (! $post) {
+            return $this->html('not-found', $request, status: 404);
+        }
+
+        // The body was sanitized with an allowlist when it was saved.
+        $content = '<main class="ssr-content container"><article class="blog-article">'
+            .'<p><a href="/blog">← Todos os artigos</a></p>'
+            .'<h1>'.e($post->title).'</h1>'.$this->time($post->published_at)
+            .'<p class="blog-article-lead">'.e($post->excerpt).'</p>'
+            .'<div class="blog-prose">'.$post->body.'</div></article></main>';
+
+        return $this->html('blog-post', $request, post: $post, content: $content);
+    }
+
     public function admin(Request $request): Response
     {
         return $this->html('admin', $request);
@@ -78,9 +123,19 @@ class PublicSiteController extends Controller
         ]);
     }
 
-    private function html(string $page, Request $request, ?Course $course = null, int $status = 200): Response
+    private function time(?Carbon $date): string
     {
-        $seo = $this->seo->page($page, $request, $course);
+        if (! $date) {
+            return '';
+        }
+        $local = $date->copy()->timezone(config('analytics.timezone', 'America/Sao_Paulo'))->locale('pt_BR');
+
+        return '<p><time datetime="'.e($date->toAtomString()).'">'.e($local->isoFormat('D [de] MMMM [de] YYYY')).'</time></p>';
+    }
+
+    private function html(string $page, Request $request, ?Course $course = null, int $status = 200, ?BlogPost $post = null, ?string $content = null): Response
+    {
+        $seo = $this->seo->page($page, $request, $course, $post);
         $file = rtrim((string) config('site.frontend_build_path'), '/\\').'/index.html';
         if (! is_file($file)) {
             return response('<!doctype html><html lang="pt-BR"><head><meta name="robots" content="noindex, nofollow"><title>Site temporariamente indisponível</title></head><body><h1>Site temporariamente indisponível</h1><p>Tente novamente em instantes.</p></body></html>', 503, ['Content-Type' => 'text/html; charset=UTF-8', 'X-Robots-Tag' => 'noindex, nofollow', 'Cache-Control' => 'no-store']);
@@ -88,7 +143,7 @@ class PublicSiteController extends Controller
         $html = file_get_contents($file);
         $head = view('seo.head', compact('seo'))->render();
         $html = preg_replace_callback('/<!-- public-seo:start -->.*?<!-- public-seo:end -->/s', fn (): string => $head, $html);
-        $html = str_replace('<div id="app"></div>', '<div id="app"><noscript><h1>'.e($seo['title']).'</h1><p>'.e($seo['description']).'</p><a href="/">Início</a> · <a href="/cursos">Cursos</a></noscript></div>', $html);
+        $html = str_replace('<div id="app"></div>', $content !== null ? '<div id="app">'.$content.'</div>' : '<div id="app"><noscript><h1>'.e($seo['title']).'</h1><p>'.e($seo['description']).'</p><a href="/">Início</a> · <a href="/cursos">Cursos</a></noscript></div>', $html);
 
         return response($html, $status, [
             'Content-Type' => 'text/html; charset=UTF-8',

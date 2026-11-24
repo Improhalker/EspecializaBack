@@ -78,7 +78,7 @@ class MediaLibraryService
             $usages = $this->usages($locked);
             if ($usages['total'] > 0) {
                 throw new HttpResponseException(response()->json([
-                    'message' => 'Esta mídia está em uso. Remova os vínculos em cursos ou páginas antes de excluí-la.',
+                    'message' => 'Esta mídia está em uso. Remova os vínculos em cursos, páginas ou artigos antes de excluí-la.',
                     'usage_count' => $usages['total'],
                     'usages' => $usages['data'],
                 ], 409));
@@ -104,6 +104,8 @@ class MediaLibraryService
             ['relation' => 'pageHeroes', 'type' => 'page', 'role' => 'Banner da página'],
             ['relation' => 'mobilePageHeroes', 'type' => 'page', 'role' => 'Banner mobile da página'],
             ['relation' => 'testimonialAvatars', 'type' => 'testimonial', 'role' => 'Foto do depoimento'],
+            ['relation' => 'blogCovers', 'type' => 'blog_post', 'role' => 'Capa do artigo'],
+            ['relation' => 'blogBodyPosts', 'type' => 'blog_post', 'role' => 'Imagem no artigo'],
         ];
         $data = [];
         $total = 0;
@@ -116,11 +118,11 @@ class MediaLibraryService
                 continue;
             }
 
-            foreach ($query->orderBy('id')->limit($remaining)->get() as $usage) {
+            foreach ($query->orderBy($query->getModel()->qualifyColumn('id'))->limit($remaining)->get() as $usage) {
                 $isPage = $group['type'] === 'page';
                 $data[] = [
                     'id' => $usage->id,
-                    'name' => $isPage ? config('page_appearances.pages.'.$usage->page_key.'.label', $usage->page_key) : $usage->name,
+                    'name' => $isPage ? config('page_appearances.pages.'.$usage->page_key.'.label', $usage->page_key) : ($usage->name ?? $usage->title),
                     'type' => $group['type'],
                     'role' => $group['role'],
                     'page_key' => $isPage ? $usage->page_key : null,

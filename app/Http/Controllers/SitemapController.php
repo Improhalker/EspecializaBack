@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\BlogPost;
 use App\Models\Course;
 use App\Services\PublicSeo;
 use Illuminate\Http\Request;
@@ -18,7 +19,7 @@ class SitemapController extends Controller
         }
         $origin = $this->seo->origin();
         $page = max(1, (int) $request->query('page', 1));
-        $count = Course::query()->published()->count();
+        $count = max(Course::query()->published()->count(), BlogPost::query()->published()->count());
         $pages = max(1, (int) ceil($count / 1000));
         $escape = fn (string $value): string => htmlspecialchars($value, ENT_XML1 | ENT_QUOTES, 'UTF-8');
         $xml = '<?xml version="1.0" encoding="UTF-8"?>';
@@ -32,7 +33,7 @@ class SitemapController extends Controller
             abort_if($page > $pages, 404);
             $xml .= '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">';
             if ($page === 1) {
-                foreach (['/', '/cursos', '/quem-somos', '/politica-de-privacidade', '/termos-de-uso'] as $path) {
+                foreach (['/', '/cursos', '/blog', '/quem-somos', '/politica-de-privacidade', '/termos-de-uso'] as $path) {
                     $xml .= '<url><loc>'.$escape($origin.$path).'</loc></url>';
                 }
             }
@@ -40,6 +41,13 @@ class SitemapController extends Controller
                 $xml .= '<url><loc>'.$escape($origin.'/cursos/'.rawurlencode($course->slug)).'</loc>';
                 if ($course->updated_at) {
                     $xml .= '<lastmod>'.$course->updated_at->toAtomString().'</lastmod>';
+                }
+                $xml .= '</url>';
+            }
+            foreach (BlogPost::query()->published()->orderBy('id')->forPage($page, 1000)->get(['slug', 'updated_at']) as $post) {
+                $xml .= '<url><loc>'.$escape($origin.'/blog/'.rawurlencode($post->slug)).'</loc>';
+                if ($post->updated_at) {
+                    $xml .= '<lastmod>'.$post->updated_at->toAtomString().'</lastmod>';
                 }
                 $xml .= '</url>';
             }

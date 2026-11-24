@@ -3,6 +3,8 @@
 use App\Http\Controllers\Api\Admin\AnalyticsController as AdminAnalyticsController;
 use App\Http\Controllers\Api\Admin\AttendanceController as AdminAttendanceController;
 use App\Http\Controllers\Api\Admin\AuthController as AdminAuthController;
+use App\Http\Controllers\Api\Admin\BlogCommentController as AdminBlogCommentController;
+use App\Http\Controllers\Api\Admin\BlogPostController as AdminBlogPostController;
 use App\Http\Controllers\Api\Admin\CategoryController as AdminCategoryController;
 use App\Http\Controllers\Api\Admin\CourseController as AdminCourseController;
 use App\Http\Controllers\Api\Admin\MediaController as AdminMediaController;
@@ -11,6 +13,8 @@ use App\Http\Controllers\Api\Admin\SettingController as AdminSettingController;
 use App\Http\Controllers\Api\Admin\SharedFaqController as AdminSharedFaqController;
 use App\Http\Controllers\Api\Admin\TestimonialController as AdminTestimonialController;
 use App\Http\Controllers\Api\AnalyticsController;
+use App\Http\Controllers\Api\BlogCommentController;
+use App\Http\Controllers\Api\BlogPostController;
 use App\Http\Controllers\Api\CourseController;
 use App\Http\Controllers\Api\HomeController;
 use App\Http\Controllers\Api\MediaDeliveryController;
@@ -25,6 +29,12 @@ Route::get('/home', HomeController::class)->name('home');
 Route::get('/courses', [CourseController::class, 'index'])->name('courses.index');
 Route::get('/courses/{slug}', [CourseController::class, 'show'])->name('courses.show');
 Route::get('/testimonials', [TestimonialController::class, 'index'])->name('testimonials.index');
+Route::prefix('blog/posts')->name('blog.')->group(function (): void {
+    Route::get('/', [BlogPostController::class, 'index'])->name('posts.index');
+    Route::get('/{slug}', [BlogPostController::class, 'show'])->name('posts.show');
+    Route::get('/{slug}/comments', [BlogCommentController::class, 'index'])->name('comments.index');
+    Route::post('/{slug}/comments', [BlogCommentController::class, 'store'])->middleware('throttle:5,10')->name('comments.store');
+});
 Route::post('/whatsapp-clicks', [WhatsappClickController::class, 'store'])->middleware([IgnoreAnalyticsTraffic::class, 'throttle:30,1'])->name('whatsapp-clicks.store');
 Route::post('/analytics/events', [AnalyticsController::class, 'store'])->middleware([IgnoreAnalyticsTraffic::class, 'throttle:90,1'])->name('analytics.store');
 
@@ -58,6 +68,18 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
             Route::apiResource('faqs', AdminSharedFaqController::class);
             Route::patch('/faqs/{faq}/publication', [AdminSharedFaqController::class, 'updatePublication'])->name('faqs.publication');
             Route::apiResource('categories', AdminCategoryController::class);
+            Route::prefix('blog')->name('blog.')->group(function (): void {
+                Route::get('/posts', [AdminBlogPostController::class, 'index'])->name('posts.index');
+                Route::post('/posts', [AdminBlogPostController::class, 'store'])->name('posts.store');
+                Route::get('/posts/{post}', [AdminBlogPostController::class, 'show'])->whereNumber('post')->name('posts.show');
+                Route::put('/posts/{post}', [AdminBlogPostController::class, 'update'])->whereNumber('post')->name('posts.update');
+                Route::patch('/posts/{post}/publication', [AdminBlogPostController::class, 'updatePublication'])->whereNumber('post')->name('posts.publication');
+                Route::delete('/posts/{post}', [AdminBlogPostController::class, 'destroy'])->whereNumber('post')->name('posts.destroy');
+                Route::post('/preview', [AdminBlogPostController::class, 'preview'])->middleware('throttle:120,1')->name('preview');
+                Route::get('/categories', [AdminBlogPostController::class, 'categories'])->name('categories');
+                Route::get('/comments', [AdminBlogCommentController::class, 'index'])->name('comments.index');
+                Route::patch('/comments/{comment}', [AdminBlogCommentController::class, 'update'])->whereNumber('comment')->name('comments.update');
+            });
             Route::get('/attendances', AdminAttendanceController::class)->name('attendances.index');
             Route::get('/analytics', AdminAnalyticsController::class)->name('analytics.index');
             Route::get('/settings', [AdminSettingController::class, 'index'])->name('settings.index');
